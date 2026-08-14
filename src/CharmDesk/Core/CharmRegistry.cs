@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.IO.Compression;
 using System.Text.Json;
 using CharmDesk.Core.Models;
 using CharmDesk.Persistence;
@@ -133,5 +134,63 @@ public sealed class CharmRegistry
     {
         if (System.IO.Directory.Exists(package.Directory))
             System.IO.Directory.Delete(package.Directory, recursive: true);
+    }
+
+    /// <summary>Zips a charm's manifest + assets into a flat, shareable pack - no folder
+    /// structure inside, just manifest.json + the image files at the archive root.</summary>
+    public void ExportPack(CharmPackage package, string destZipPath)
+    {
+        if (File.Exists(destZipPath)) File.Delete(destZipPath);
+        using var archive = ZipFile.Open(destZipPath, ZipArchiveMode.Create);
+        foreach (var file in System.IO.Directory.GetFiles(package.Directory))
+            archive.CreateEntryFromFile(file, Path.GetFileName(file));
+    }
+
+    /// <summary>Imports a charm pack (a .zip produced by <see cref="ExportPack"/>, or hand-built
+    /// the same way: manifest.json + charm.png [+ thumbnail.png] at the archive root). Throws
+    /// <see cref="InvalidDataException"/> with a user-facing message if the pack looks wrong.</summary>
+    public CharmPackage ImportPack(string zipPath)
+    {
+        using var archive = ZipFile.OpenRead(zipPath);
+        var manifestEntry = archive.GetEntry("manifest.json")
+            ?? throw new InvalidDataException("This doesn't look like a charm pack - no manifest.json inside.");
+
+        CharmManifest manifest;
+        using (var stream = manifestEntry.Open())
+        using (var reader = new StreamReader(stream))
+        {
+            manifest = JsonSerializer.Deserialize<CharmManifest>(reader.ReadToEnd(), JsonOptions)
+                ?? throw new InvalidDataException("This charm pack's manifest.json couldn't be read.");
+        }
+
+        if (archive.GetEntry(manifest.Image) is null)
+            throw new InvalidDataException($"This charm pack is missing its image ({manifest.Image}).");
+
+        manifest.Id = UniqueId(string.IsNullOrWhiteSpace(manifest.Id) ? "charm" : manifest.Id);
+        var dir = Path.Combine(CharmsDirectory, manifest.Id);
+        System.IO.Directory.CreateDirectory(dir);
+
+        foreach (var entry in archive.Entries)
+        {
+            if (string.IsNullOrEmpty(entry.Name)) continue; // skip directory entries
+            entry.ExtractToFile(Path.Combine(dir, entry.Name), overwrite: true);
+        }
+
+        var package = new CharmPackage(manifest, dir);
+        Save(package); // re-write manifest.json in case the id above got deduplicated
+        return package;
+    }
+
+    /// <summary>Returns <paramref name="preferred"/> if it's free, otherwise the first
+    /// "preferred-2", "preferred-3", ... that doesn't already exist.</summary>
+    private string UniqueId(string preferred)
+    {
+        if (!System.IO.Directory.Exists(Path.Combine(CharmsDirectory, preferred)))
+            return preferred;
+        var n = 1;
+        string candidate;
+        do { candidate = $"{preferred}-{++n}"; }
+        while (System.IO.Directory.Exists(Path.Combine(CharmsDirectory, candidate)));
+        return candidate;
     }
 }

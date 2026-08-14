@@ -34,7 +34,7 @@ public partial class CharmPreviewWindow : Window
             Mass = package.Manifest.Physics.Mass,
         };
         _engine = new PhysicsEngine(physics) { AnchorX = 145, AnchorY = 20 };
-        _interaction = new InteractionSystem(_engine);
+        _interaction = new InteractionSystem(_engine, new DefaultCharmBehavior(package.Manifest.ReactionStyle));
 
         InitializeComponent();
         TitleText.Text = package.Manifest.Name;

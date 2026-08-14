@@ -60,7 +60,10 @@
                             <TextBlock Text="Display Scale" Style="{StaticResource Label}" HorizontalAlignment="Left"/>
                             <TextBlock x:Name="DisplayScaleValue" Style="{StaticResource Label}" HorizontalAlignment="Right"/>
                         </Grid>
-                        <Slider x:Name="DisplayScaleSlider" Minimum="0.3" Maximum="3.0" Value="1.0" ValueChanged="DisplayScaleSlider_ValueChanged"/>
+                        <Slider x:Name="DisplayScaleSlider" Minimum="0.3" Maximum="3.0" Value="1.0" ValueChanged="DisplayScaleSlider_ValueChanged" Margin="0,0,0,14"/>
+
+                        <TextBlock Text="Personality" Style="{StaticResource Label}"/>
+                        <ComboBox x:Name="PersonalityCombo" DisplayMemberPath="Label" SelectionChanged="PersonalityCombo_SelectionChanged"/>
                     </StackPanel>
                 </Border>
 

@@ -2,7 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Charm Library" Height="700" Width="760" MinHeight="420" MinWidth="520"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        AllowDrop="True" DragEnter="Window_DragEnter" Drop="Window_Drop">
     <Grid Margin="28,26,28,20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -12,7 +13,7 @@
         <StackPanel Grid.Row="0" Margin="0,0,0,20">
             <TextBlock Text="Y O U R   C O L L E C T I O N" Style="{StaticResource Eyebrow}"/>
             <TextBlock Text="Charm Library" Style="{StaticResource H1}" Margin="0,3,0,4"/>
-            <TextBlock Text="Pick one to hang on your desktop." Style="{StaticResource Muted}"/>
+            <TextBlock Text="Pick one to hang on your desktop. Drag a PNG or a .zip charm pack in to add it." Style="{StaticResource Muted}"/>
         </StackPanel>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,6,0,0">

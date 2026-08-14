@@ -65,6 +65,16 @@ internal sealed class GlobalMouseHook : IDisposable
     /// blocked by security software - and the caller should not assume the charm is reachable.</summary>
     public bool IsInstalled => _hookHandle != IntPtr.Zero;
 
+    /// <summary>
+    /// A low-level hook's callback runs for *every* mouse message system-wide, whether or not
+    /// the app cares right now - this hook only ever needs to do anything while the window is
+    /// click-through (see the class summary). Set this to false whenever click-through is off
+    /// (the window is already receiving normal WPF input, most of what this hook exists for),
+    /// so the hot path becomes a single bool check instead of a struct marshal + event dispatch
+    /// on every mouse move anywhere on the desktop while the user is dragging or just hovering.
+    /// </summary>
+    public bool Enabled { get; set; } = true;
+
     public void Start()
     {
         if (_hookHandle != IntPtr.Zero) return;
@@ -79,7 +89,7 @@ internal sealed class GlobalMouseHook : IDisposable
 
     private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
-        if (nCode >= 0 && (wParam == (IntPtr)WM_MOUSEMOVE || wParam == (IntPtr)WM_LBUTTONDOWN || wParam == (IntPtr)WM_RBUTTONDOWN))
+        if (Enabled && nCode >= 0 && (wParam == (IntPtr)WM_MOUSEMOVE || wParam == (IntPtr)WM_LBUTTONDOWN || wParam == (IntPtr)WM_RBUTTONDOWN))
         {
             var data = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam);
             MouseMoved?.Invoke(data.pt.X, data.pt.Y);

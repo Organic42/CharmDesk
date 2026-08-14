@@ -12,6 +12,17 @@ public sealed class CharmPhysicsSettings
     public double Mass { get; set; } = 1.0;
 }
 
+/// <summary>How a charm reacts to being clicked/double-clicked/hovered - a per-charm
+/// "personality" knob, data-driven rather than a bespoke behavior class per charm.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum ReactionStyle
+{
+    Default,
+    Playful,
+    Gentle,
+    Dramatic,
+}
+
 /// <summary>1:1 model of a charm package's manifest.json.</summary>
 public sealed class CharmManifest
 {
@@ -23,6 +34,7 @@ public sealed class CharmManifest
     public string Thumbnail { get; set; } = "thumbnail.png";
     public bool Enabled { get; set; } = true;
     public double DisplayScale { get; set; } = 1.0;
+    public ReactionStyle ReactionStyle { get; set; } = ReactionStyle.Default;
     public CharmPhysicsSettings Physics { get; set; } = new();
 
     [JsonIgnore]

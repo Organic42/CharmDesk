@@ -19,7 +19,6 @@ public sealed class PhysicsEngine
     private const double MaxRadiusFactor = 1.35;
 
     private readonly Random _rng = new();
-    private readonly double _idlePhaseOffset;
 
     public CharmPhysicsSettings Settings { get; set; }
 
@@ -44,13 +43,10 @@ public sealed class PhysicsEngine
     private double _targetX;
     private double _targetY;
 
-    private double _elapsed;
-
     public PhysicsEngine(CharmPhysicsSettings settings)
     {
         Settings = settings;
         Radius = settings.StringLength;
-        _idlePhaseOffset = _rng.NextDouble() * Math.PI * 2;
     }
 
     public double BobX => AnchorX + Radius * Math.Sin(Theta);
@@ -74,19 +70,21 @@ public sealed class PhysicsEngine
         IsGrabbed = false;
     }
 
-    /// <summary>A quick tug on the string - a small playful bounce, e.g. on single click.</summary>
-    public void Bounce()
+    /// <summary>A quick tug on the string - a small playful bounce, e.g. on single click.
+    /// <paramref name="intensity"/> scales the impulse (1.0 = as authored) so a charm's
+    /// per-manifest <c>ReactionStyle</c> can make it feel punchier or more subdued.</summary>
+    public void Bounce(double intensity = 1.0)
     {
         var mass = Math.Max(0.15, Settings.Mass);
-        RadiusVelocity -= Settings.StringLength * 2.6 / mass;
-        ThetaVelocity += (_rng.NextDouble() - 0.5) * 0.6 / mass;
+        RadiusVelocity -= Settings.StringLength * 2.6 * intensity / mass;
+        ThetaVelocity += (_rng.NextDouble() - 0.5) * 0.6 * intensity / mass;
     }
 
     /// <summary>A twist about the charm's own axis, e.g. on double click.</summary>
-    public void Spike()
+    public void Spike(double intensity = 1.0)
     {
         var mass = Math.Max(0.15, Settings.Mass);
-        SpinVelocity += Math.PI * 5.5 * (_rng.NextDouble() < 0.5 ? -1 : 1) / mass;
+        SpinVelocity += Math.PI * 5.5 * intensity * (_rng.NextDouble() < 0.5 ? -1 : 1) / mass;
     }
 
     /// <summary>A small swing impulse, e.g. a hover greeting or an on-launch arrival flourish.</summary>
@@ -99,7 +97,6 @@ public sealed class PhysicsEngine
     {
         if (dt <= 0) return;
         dt = Math.Min(dt, 1.0 / 20.0); // clamp huge dt spikes (e.g. after the window was hidden)
-        _elapsed += dt;
 
         var stringLength = Math.Max(1, Settings.StringLength);
         var gravity = Settings.Gravity * Intensity;
@@ -180,9 +177,13 @@ public sealed class PhysicsEngine
             radiusAccel = (-omegaR * omegaR * (Radius - stringLength) - 2 * zeta * omegaR * RadiusVelocity) / mass;
             spinAccel = -2 * zeta * omegaN * 2.5 * SpinVelocity / mass;
 
-            // Subtle idle sway so the charm never looks perfectly frozen at rest.
-            var idle = Math.Sin(_elapsed * 0.6 + _idlePhaseOffset) * 0.00025 * gravity;
-            thetaAccel += idle;
+            // NOTE: there used to be a permanent sinusoidal "idle sway" driving force here, to
+            // keep the charm from looking frozen. It held the pendulum at a steady-state
+            // amplitude well above the IsAtRest threshold, so the 60fps render loop could never
+            // reach rest and shut itself off - the charm animated continuously, forever, for a
+            // motion too small to notice. CharmWindow's idle-flourish timer now provides that
+            // "still alive" feel with an occasional nudge every 20-40s instead, which lets the
+            // render loop actually stop in between. Don't reintroduce a continuous driver here.
         }
 
         ThetaVelocity += thetaAccel * dt;

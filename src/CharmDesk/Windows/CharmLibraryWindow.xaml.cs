@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -8,6 +9,8 @@ using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using CharmDesk.Core;
+using CharmDesk.Persistence;
+using Microsoft.Win32;
 
 namespace CharmDesk.Windows;
 
@@ -138,7 +141,7 @@ public partial class CharmLibraryWindow : Window
         var previewButton = new Button { Content = "\U0001F441 Preview", Style = (Style)FindResource("IconButton"), Margin = new Thickness(0, 0, 4, 0) };
         previewButton.Click += (_, _) => new CharmPreviewWindow(package) { Owner = this }.Show();
 
-        var editButton = new Button { Content = "✎ Edit", Style = (Style)FindResource("IconButton") };
+        var editButton = new Button { Content = "✎ Edit", Style = (Style)FindResource("IconButton"), Margin = new Thickness(0, 0, 4, 0) };
         editButton.Click += (_, _) =>
         {
             var manager = new CharmManagerWindow(_app, package) { Owner = this };
@@ -146,15 +149,22 @@ public partial class CharmLibraryWindow : Window
             RebuildCards();
         };
 
+        var exportButton = new Button { Content = "⤓", Style = (Style)FindResource("IconButton"), ToolTip = "Export as a .zip charm pack" };
+        exportButton.Click += (_, _) => ExportPack(package);
+
         var secondaryRow = new Grid();
+        secondaryRow.ColumnDefinitions.Add(new ColumnDefinition());
         secondaryRow.ColumnDefinitions.Add(new ColumnDefinition());
         secondaryRow.ColumnDefinitions.Add(new ColumnDefinition());
         Grid.SetColumn(previewButton, 0);
         Grid.SetColumn(editButton, 1);
+        Grid.SetColumn(exportButton, 2);
         previewButton.HorizontalAlignment = HorizontalAlignment.Stretch;
         editButton.HorizontalAlignment = HorizontalAlignment.Stretch;
+        exportButton.HorizontalAlignment = HorizontalAlignment.Stretch;
         secondaryRow.Children.Add(previewButton);
         secondaryRow.Children.Add(editButton);
+        secondaryRow.Children.Add(exportButton);
 
         content.Children.Add(tag);
         content.Children.Add(image);
@@ -286,6 +296,70 @@ public partial class CharmLibraryWindow : Window
                 EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut },
             };
             t.BeginAnimation(TranslateTransform.YProperty, anim);
+        }
+    }
+
+    // ---- Export / drag-drop import -----------------------------------------
+
+    private void ExportPack(CharmPackage package)
+    {
+        var dlg = new SaveFileDialog
+        {
+            Title = "Export charm pack",
+            Filter = "Charm pack (*.zip)|*.zip",
+            FileName = $"{package.Manifest.Id}.zip",
+        };
+        if (dlg.ShowDialog(this) != true) return;
+
+        try
+        {
+            _app.Registry.ExportPack(package, dlg.FileName);
+            MessageBox.Show(this, $"Exported '{package.Manifest.Name}' to {dlg.FileName}", "CharmDesk",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Logger.Log("CharmLibraryWindow.ExportPack", ex);
+            MessageBox.Show(this, $"Couldn't export this charm: {ex.Message}", "CharmDesk",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void Window_DragEnter(object sender, DragEventArgs e)
+    {
+        e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void Window_Drop(object sender, DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+        if (e.Data.GetData(DataFormats.FileDrop) is not string[] files) return;
+
+        var file = files.FirstOrDefault(f =>
+            f.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+            f.EndsWith(".zip", StringComparison.OrdinalIgnoreCase));
+        if (file is null) return;
+
+        if (file.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                _app.Registry.ImportPack(file);
+                _app.RefreshAfterLibraryChange();
+                RebuildCards();
+            }
+            catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
+            {
+                Logger.Log("CharmLibraryWindow.Drop (zip)", ex);
+                MessageBox.Show(this, ex.Message, "CharmDesk", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+        else
+        {
+            var manager = new CharmManagerWindow(_app, initialImagePath: file) { Owner = this };
+            manager.ShowDialog();
+            RebuildCards();
         }
     }
 }

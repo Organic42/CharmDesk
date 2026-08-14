@@ -8,6 +8,7 @@ public sealed class AppSettings
     public double PhysicsIntensity { get; set; } = 1.0;
     public double CharmScale { get; set; } = 1.0;
     public bool CharmVisible { get; set; } = true;
+    public bool SoundEffectsEnabled { get; set; } = true;
 
     public string? DefaultCharmId { get; set; }
     public string? SelectedCharmId { get; set; }

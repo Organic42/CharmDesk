@@ -26,6 +26,10 @@ public sealed class InteractionSystem
         _behavior = behavior ?? new DefaultCharmBehavior();
     }
 
+    /// <summary>Swaps the active behavior - used by the Charm Manager to reflect a chosen
+    /// ReactionStyle in its live preview as soon as the user changes it.</summary>
+    public void SetBehavior(ICharmBehavior behavior) => _behavior = behavior;
+
     public bool HitTest(double localX, double localY)
     {
         var dx = localX - _engine.BobX;

@@ -23,6 +23,7 @@ public partial class SettingsWindow : Window
 
         StartWithWindowsCheck.IsChecked = Settings.StartWithWindows;
         AlwaysOnTopCheck.IsChecked = Settings.AlwaysOnTop;
+        SoundEffectsCheck.IsChecked = Settings.SoundEffectsEnabled;
         EnablePhysicsCheck.IsChecked = Settings.EnablePhysics;
 
         IntensitySlider.Value = Settings.PhysicsIntensity;
@@ -53,6 +54,7 @@ public partial class SettingsWindow : Window
 
         Settings.StartWithWindows = StartWithWindowsCheck.IsChecked == true;
         Settings.AlwaysOnTop = AlwaysOnTopCheck.IsChecked == true;
+        Settings.SoundEffectsEnabled = SoundEffectsCheck.IsChecked == true;
         Settings.EnablePhysics = EnablePhysicsCheck.IsChecked == true;
 
         try

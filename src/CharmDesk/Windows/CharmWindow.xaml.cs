@@ -57,6 +57,12 @@ public partial class CharmWindow : Window
     private GlobalMouseHook? _mouseHook;
     private double _dpiScale = 1.0;
 
+    private DispatcherTimer? _idleTimer;
+    private readonly Random _idleRng = new();
+
+    private PathFigure? _stringFigure;
+    private QuadraticBezierSegment? _stringSegment;
+
     private readonly TrayIconManager _tray;
 
     public CharmWindow(CharmPackage package, SettingsManager settingsManager, TrayIconManager tray)
@@ -78,7 +84,8 @@ public partial class CharmWindow : Window
             Intensity = Settings.PhysicsIntensity,
             Enabled = Settings.EnablePhysics,
         };
-        _interaction = new InteractionSystem(_engine, new DefaultCharmBehavior());
+        _interaction = new InteractionSystem(_engine,
+            new DefaultCharmBehavior(package.Manifest.ReactionStyle, () => Settings.SoundEffectsEnabled));
         _interaction.HoverChanged += hovering => EnsureTimerRunning();
 
         InitializeComponent();
@@ -114,7 +121,33 @@ public partial class CharmWindow : Window
         {
             _mouseHook?.Dispose();
             _timer?.Stop();
+            _idleTimer?.Stop();
         };
+    }
+
+    /// <summary>An occasional small nudge so the charm never looks like a static image over a
+    /// long idle stretch. Reschedules itself on a randomized interval - deliberately a separate,
+    /// rarely-firing timer rather than folding into the render loop, so it costs essentially
+    /// nothing while the charm is just hanging there (a Tick every 20-40s, doing a couple of
+    /// field checks, is negligible compared to running the 60fps render timer continuously).</summary>
+    private void ScheduleIdleFlourish()
+    {
+        _idleTimer ??= new DispatcherTimer();
+        _idleTimer.Stop();
+        _idleTimer.Tick -= OnIdleFlourishTick;
+        _idleTimer.Tick += OnIdleFlourishTick;
+        _idleTimer.Interval = TimeSpan.FromSeconds(20 + _idleRng.NextDouble() * 20);
+        _idleTimer.Start();
+    }
+
+    private void OnIdleFlourishTick(object? sender, EventArgs e)
+    {
+        if (IsVisible && _engine.IsAtRest && !_interaction.IsGrabbing && !_anchorDragging)
+        {
+            _engine.Nudge((_idleRng.NextDouble() - 0.5) * 0.09);
+            EnsureTimerRunning();
+        }
+        ScheduleIdleFlourish();
     }
 
     private void OnGlobalMouseMoved(int screenX, int screenY)
@@ -155,6 +188,7 @@ public partial class CharmWindow : Window
         _engine.Nudge(0.22);
         RenderFrame();
         EnsureTimerRunning();
+        ScheduleIdleFlourish();
     }
 
     private void LoadCharmImage()
@@ -350,6 +384,10 @@ public partial class CharmWindow : Window
         if (_clickThroughState == clickThrough) return;
         _clickThroughState = clickThrough;
         NativeMethods.SetClickThrough(_hwnd, clickThrough);
+        // The hook only has a job to do while we're click-through (see GlobalMouseHook's
+        // summary) - disabling it while hovering/dragging turns the busiest moment (mouse
+        // moving a lot, right as the user grabs the charm) into the cheapest one.
+        if (_mouseHook is not null) _mouseHook.Enabled = clickThrough;
     }
 
     // ---- Render loop -----------------------------------------------------
@@ -409,9 +447,21 @@ public partial class CharmWindow : Window
             ? new Point(mid.X + (-dy / len) * sag, mid.Y + (dx / len) * sag)
             : mid;
 
-        var figure = new PathFigure { StartPoint = start, IsClosed = false };
-        figure.Segments.Add(new QuadraticBezierSegment(control, end, true));
-        StringPath.Data = new PathGeometry(new[] { figure });
+        // The string geometry is rebuilt every rendered frame while the charm is moving (up to
+        // 60 times/sec) - reusing one PathFigure/Segment/Geometry set and just moving its points
+        // avoids allocating three new objects per frame for the GC to clean up later.
+        if (_stringSegment is null)
+        {
+            _stringSegment = new QuadraticBezierSegment(control, end, true);
+            _stringFigure = new PathFigure(start, new PathSegment[] { _stringSegment }, false);
+            StringPath.Data = new PathGeometry(new[] { _stringFigure });
+        }
+        else
+        {
+            _stringFigure!.StartPoint = start;
+            _stringSegment.Point1 = control;
+            _stringSegment.Point2 = end;
+        }
     }
 
     // ---- Public control surface (tray menu) ------------------------------
@@ -422,11 +472,13 @@ public partial class CharmWindow : Window
     {
         Show();
         EnsureTimerRunning();
+        ScheduleIdleFlourish();
     }
 
     public void HideCharm()
     {
         _timer?.Stop();
+        _idleTimer?.Stop();
         Hide();
     }
 

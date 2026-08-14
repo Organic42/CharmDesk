@@ -33,7 +33,17 @@ public partial class CharmManagerWindow : Window
     private double _previewDisplaySize = 120;
     private const double PreviewAttachFractionY = 0.11;
 
-    public CharmManagerWindow(App app, CharmPackage? editing = null)
+    private sealed record PersonalityItem(ReactionStyle Style, string Label);
+
+    private static readonly PersonalityItem[] PersonalityOptions =
+    {
+        new(ReactionStyle.Default, "Default"),
+        new(ReactionStyle.Playful, "Playful - bigger bounce, energetic spin"),
+        new(ReactionStyle.Gentle, "Gentle - soft, understated reactions"),
+        new(ReactionStyle.Dramatic, "Dramatic - big spin with an extra swing kick"),
+    };
+
+    public CharmManagerWindow(App app, CharmPackage? editing = null, string? initialImagePath = null)
     {
         _app = app;
         _editing = editing;
@@ -93,7 +103,13 @@ public partial class CharmManagerWindow : Window
         else
         {
             Title = "Charm Manager - Import Charm";
+            if (initialImagePath is not null && File.Exists(initialImagePath))
+                _selectedImagePath = initialImagePath;
         }
+
+        PersonalityCombo.ItemsSource = PersonalityOptions;
+        var initialStyle = editing?.Manifest.ReactionStyle ?? ReactionStyle.Default;
+        PersonalityCombo.SelectedItem = PersonalityOptions.FirstOrDefault(o => o.Style == initialStyle) ?? PersonalityOptions[0];
 
         ApplyPhysicsFromSliders();
         UpdateAllValueLabels();
@@ -211,6 +227,12 @@ public partial class CharmManagerWindow : Window
         UpdateAllValueLabels();
     }
 
+    private void PersonalityCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (PersonalityCombo.SelectedItem is PersonalityItem item)
+            _previewInteraction.SetBehavior(new DefaultCharmBehavior(item.Style));
+    }
+
     private void ApplyPhysicsFromSliders()
     {
         // XAML-declared sliders fire ValueChanged (via Minimum/Maximum coercion) as
@@ -265,6 +287,7 @@ public partial class CharmManagerWindow : Window
         manifest.Category = string.IsNullOrWhiteSpace(CategoryBox.Text) ? "Uncategorized" : CategoryBox.Text.Trim();
         manifest.Enabled = EnabledCheck.IsChecked == true;
         manifest.DisplayScale = DisplayScaleSlider.Value;
+        manifest.ReactionStyle = (PersonalityCombo.SelectedItem as PersonalityItem)?.Style ?? ReactionStyle.Default;
         manifest.Physics.StringLength = StringLengthSlider.Value;
         manifest.Physics.Gravity = GravitySlider.Value;
         manifest.Physics.Damping = DampingSlider.Value;
