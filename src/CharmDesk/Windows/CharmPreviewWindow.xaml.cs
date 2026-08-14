@@ -39,21 +39,7 @@ public partial class CharmPreviewWindow : Window
         InitializeComponent();
         TitleText.Text = package.Manifest.Name;
 
-        BitmapImage? bmp = null;
-        try
-        {
-            bmp = new BitmapImage();
-            bmp.BeginInit();
-            bmp.CacheOption = BitmapCacheOption.OnLoad;
-            bmp.UriSource = new Uri(package.ImagePath, UriKind.Absolute);
-            bmp.EndInit();
-            bmp.Freeze();
-        }
-        catch (Exception ex) when (ex is System.IO.IOException or NotSupportedException or System.IO.FileFormatException)
-        {
-            CharmDesk.Persistence.Logger.Log($"CharmPreviewWindow ({package.ImagePath})", ex);
-            bmp = null;
-        }
+        var bmp = ImageLoader.TryLoad(package.ImagePath, "CharmPreviewWindow");
         PreviewImage.Source = bmp;
 
         var aspect = bmp is { PixelWidth: > 0 } ? (double)bmp.PixelHeight / bmp.PixelWidth : 1.0;

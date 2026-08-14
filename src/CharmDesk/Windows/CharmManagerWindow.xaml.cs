@@ -111,14 +111,10 @@ public partial class CharmManagerWindow : Window
         }
 
         PngPathText.Text = Path.GetFileName(_selectedImagePath);
-        var bmp = new BitmapImage();
-        bmp.BeginInit();
-        bmp.CacheOption = BitmapCacheOption.OnLoad;
-        bmp.UriSource = new Uri(_selectedImagePath, UriKind.Absolute);
-        bmp.EndInit();
+        var bmp = ImageLoader.TryLoad(_selectedImagePath, "CharmManagerWindow.LoadPreviewImageIfAny");
         PreviewImage.Source = bmp;
 
-        var aspect = bmp.PixelWidth > 0 ? (double)bmp.PixelHeight / bmp.PixelWidth : 1.0;
+        var aspect = bmp is { PixelWidth: > 0 } ? (double)bmp.PixelHeight / bmp.PixelWidth : 1.0;
         _previewDisplaySize = 60 * Math.Clamp(DisplayScaleSlider.Value, 0.3, 3.0);
         PreviewImage.Width = _previewDisplaySize;
         PreviewImage.Height = _previewDisplaySize * aspect;
@@ -217,7 +213,14 @@ public partial class CharmManagerWindow : Window
 
     private void ApplyPhysicsFromSliders()
     {
-        if (StringLengthSlider is null) return;
+        // XAML-declared sliders fire ValueChanged (via Minimum/Maximum coercion) as
+        // InitializeComponent connects each element in document order - an earlier slider can
+        // start firing before later ones in this same method have been connected yet, so every
+        // one of them needs its own null check, not just the first.
+        if (StringLengthSlider is null || GravitySlider is null || DampingSlider is null ||
+            StiffnessSlider is null || MassSlider is null)
+            return;
+
         _previewEngine.Settings.StringLength = StringLengthSlider.Value;
         _previewEngine.Settings.Gravity = GravitySlider.Value;
         _previewEngine.Settings.Damping = DampingSlider.Value;
@@ -227,7 +230,12 @@ public partial class CharmManagerWindow : Window
 
     private void UpdateAllValueLabels()
     {
-        if (DisplayScaleValue is null) return;
+        if (DisplayScaleValue is null || StringLengthValue is null || GravityValue is null ||
+            DampingValue is null || StiffnessValue is null || MassValue is null ||
+            StringLengthSlider is null || GravitySlider is null || DampingSlider is null ||
+            StiffnessSlider is null || MassSlider is null)
+            return;
+
         DisplayScaleValue.Text = DisplayScaleSlider.Value.ToString("0.00");
         StringLengthValue.Text = StringLengthSlider.Value.ToString("0");
         GravityValue.Text = GravitySlider.Value.ToString("0");

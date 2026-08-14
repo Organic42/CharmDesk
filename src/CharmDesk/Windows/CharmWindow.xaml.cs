@@ -159,23 +159,7 @@ public partial class CharmWindow : Window
 
     private void LoadCharmImage()
     {
-        BitmapImage? bmp = null;
-        try
-        {
-            bmp = new BitmapImage();
-            bmp.BeginInit();
-            bmp.CacheOption = BitmapCacheOption.OnLoad;
-            bmp.UriSource = new Uri(_package.ImagePath, UriKind.Absolute);
-            bmp.EndInit();
-            bmp.Freeze();
-        }
-        catch (Exception ex) when (ex is IOException or NotSupportedException or FileFormatException)
-        {
-            // A missing or corrupt charm image shouldn't take the whole overlay down - fall
-            // back to a blank sprite at a reasonable default size and keep going.
-            Logger.Log($"CharmWindow.LoadCharmImage ({_package.ImagePath})", ex);
-            bmp = null;
-        }
+        var bmp = ImageLoader.TryLoad(_package.ImagePath, "CharmWindow.LoadCharmImage");
         CharmImage.Source = bmp;
 
         var scale = ScaleFactor();

@@ -47,8 +47,17 @@ public partial class CharmLibraryWindow : Window
 
         foreach (var package in _app.Registry.LoadAll())
         {
-            CardsPanel.Children.Add(BuildCard(package, isActive:
-                string.Equals(package.Manifest.Id, activeId, StringComparison.OrdinalIgnoreCase)));
+            try
+            {
+                CardsPanel.Children.Add(BuildCard(package, isActive:
+                    string.Equals(package.Manifest.Id, activeId, StringComparison.OrdinalIgnoreCase)));
+            }
+            catch (Exception ex)
+            {
+                // One bad charm (unreadable image, etc.) should never blank out the rest of
+                // the shelf or the "New Pin" slot after it.
+                CharmDesk.Persistence.Logger.Log($"CharmLibraryWindow.BuildCard ({package.Manifest.Id})", ex);
+            }
         }
 
         CardsPanel.Children.Add(BuildAddCard());
@@ -103,13 +112,7 @@ public partial class CharmLibraryWindow : Window
         var thumbPath = File.Exists(package.ThumbnailPath) ? package.ThumbnailPath : package.ImagePath;
         if (File.Exists(thumbPath))
         {
-            var bmp = new BitmapImage();
-            bmp.BeginInit();
-            bmp.CacheOption = BitmapCacheOption.OnLoad;
-            bmp.UriSource = new Uri(thumbPath, UriKind.Absolute);
-            bmp.EndInit();
-            bmp.Freeze();
-            image.Source = bmp;
+            image.Source = ImageLoader.TryLoad(thumbPath, "CharmLibraryWindow.BuildCard");
         }
 
         var nameText = new TextBlock
