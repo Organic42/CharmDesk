@@ -24,10 +24,12 @@ $certSubject = "CN=Organic42"
 $pfxPath    = Join-Path $PSScriptRoot "CharmDesk-test.pfx"
 $pfxPassword = "charmdesk-local-test"
 
-Write-Host "== 1/5: Publishing CharmDesk (framework-dependent) ==" -ForegroundColor Cyan
+Write-Host "== 1/5: Publishing CharmDesk (framework-dependent, packaged flavor) ==" -ForegroundColor Cyan
 if (Test-Path $stagingDir) { Remove-Item $stagingDir -Recurse -Force }
 New-Item -ItemType Directory -Path $stagingDir | Out-Null
-dotnet publish $srcProj -c Release -o $stagingDir
+# PackagedBuild=true switches to the Windows SDK TFM so Windows.ApplicationModel.StartupTask
+# is available - see the comment block in CharmDesk.csproj. Only the MSIX build needs it.
+dotnet publish $srcProj -c Release -p:PackagedBuild=true -o $stagingDir
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed" }
 
 Write-Host "== 2/5: Assembling package layout ==" -ForegroundColor Cyan

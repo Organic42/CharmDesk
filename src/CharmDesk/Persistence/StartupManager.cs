@@ -77,6 +77,7 @@ public static class StartupManager
         if (!IsPackaged)
             return IsRunKeyRegistered() ? StartupState.Enabled : StartupState.Disabled;
 
+#if PACKAGED_BUILD
         try
         {
             var task = await global::Windows.ApplicationModel.StartupTask.GetAsync(StartupTaskId);
@@ -87,6 +88,11 @@ public static class StartupManager
             Logger.Log("StartupManager.GetStateAsync", ex);
             return StartupState.Disabled;
         }
+#else
+        // Unreachable in practice: a build without the WinRT projection is never packaged.
+        await Task.CompletedTask;
+        return IsRunKeyRegistered() ? StartupState.Enabled : StartupState.Disabled;
+#endif
     }
 
     /// <summary>Applies the requested setting and returns the state actually achieved - which
@@ -99,6 +105,7 @@ public static class StartupManager
             return enabled ? StartupState.Enabled : StartupState.Disabled;
         }
 
+#if PACKAGED_BUILD
         try
         {
             var task = await global::Windows.ApplicationModel.StartupTask.GetAsync(StartupTaskId);
@@ -116,8 +123,14 @@ public static class StartupManager
             Logger.Log($"StartupManager.SetEnabledAsync({enabled})", ex);
             return StartupState.Disabled;
         }
+#else
+        await Task.CompletedTask;
+        SetRunKey(enabled);
+        return enabled ? StartupState.Enabled : StartupState.Disabled;
+#endif
     }
 
+#if PACKAGED_BUILD
     private static StartupState Map(global::Windows.ApplicationModel.StartupTaskState state) => state switch
     {
         global::Windows.ApplicationModel.StartupTaskState.Enabled => StartupState.Enabled,
@@ -126,6 +139,7 @@ public static class StartupManager
         global::Windows.ApplicationModel.StartupTaskState.DisabledByPolicy => StartupState.DisabledByPolicy,
         _ => StartupState.Disabled,
     };
+#endif
 
     // ---- Unpackaged fallback: the classic HKCU Run key ----------------------
 

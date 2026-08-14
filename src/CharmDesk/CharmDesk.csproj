@@ -2,12 +2,26 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <!-- Targets a Windows SDK version (rather than plain net8.0-windows) to get the WinRT
-         projections for Windows.ApplicationModel.StartupTask, which is how a packaged/Store app
-         is supposed to register "start at login". Kept at 17763 to match the MSIX manifest's
-         MinVersion so this doesn't quietly raise the app's minimum Windows requirement. -->
-    <TargetFramework>net8.0-windows10.0.17763.0</TargetFramework>
-    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+
+    <!-- Two build shapes, selected by -p:PackagedBuild=true:
+
+         PackagedBuild=true  (MSIX / Microsoft Store)
+           Targets a Windows SDK TFM to get the WinRT projection for
+           Windows.ApplicationModel.StartupTask, the Store-sanctioned "start at login" API.
+           Pinned to 17763 to match the manifest's MinVersion so this doesn't quietly raise
+           the app's minimum Windows requirement.
+
+         PackagedBuild=false (default: plain exe, dev runs, portable copies)
+           Plain net8.0-windows. Unpackaged processes have no package identity, so the
+           StartupTask API is unusable there anyway - that path falls back to the HKCU Run
+           key. Skipping the SDK TFM keeps Microsoft.Windows.SDK.NET.dll (~23MB, dwarfing
+           the ~3MB app) out of the published output. -->
+    <PackagedBuild Condition="'$(PackagedBuild)' == ''">false</PackagedBuild>
+    <TargetFramework Condition="'$(PackagedBuild)' == 'true'">net8.0-windows10.0.17763.0</TargetFramework>
+    <TargetFramework Condition="'$(PackagedBuild)' != 'true'">net8.0-windows</TargetFramework>
+    <SupportedOSPlatformVersion Condition="'$(PackagedBuild)' == 'true'">10.0.17763.0</SupportedOSPlatformVersion>
+    <DefineConstants Condition="'$(PackagedBuild)' == 'true'">$(DefineConstants);PACKAGED_BUILD</DefineConstants>
+
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
@@ -46,10 +60,16 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Bundled default charm packages, copied next to the exe as charms/<id>/... -->
+    <!-- Bundled default charm packages, copied next to the exe as charms/<id>/...
+
+         ExcludeFromSingleFile is essential, not cosmetic: with PublishSingleFile the bundler
+         will otherwise embed some of these inside the exe, where the app can't see them - it
+         reads charms from AppContext.BaseDirectory\charms on disk. That produced a share build
+         that silently shipped a charm with no image. -->
     <Content Include="..\..\charms\**\*.*">
       <Link>charms\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </Content>
   </ItemGroup>
 
@@ -63,6 +83,7 @@
          resource - SoundPlayer wants a file path/stream, not a pack URI). -->
     <Content Include="Sounds\*.wav">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </Content>
   </ItemGroup>
 
