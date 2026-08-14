@@ -48,23 +48,34 @@ public partial class SettingsWindow : Window
         _initializing = false;
     }
 
-    private void OnAnyChanged(object sender, RoutedEventArgs e)
+    private async void OnAnyChanged(object sender, RoutedEventArgs e)
     {
         if (_initializing) return;
 
-        Settings.StartWithWindows = StartWithWindowsCheck.IsChecked == true;
         Settings.AlwaysOnTop = AlwaysOnTopCheck.IsChecked == true;
         Settings.SoundEffectsEnabled = SoundEffectsCheck.IsChecked == true;
         Settings.EnablePhysics = EnablePhysicsCheck.IsChecked == true;
 
-        try
+        var wantStartup = StartWithWindowsCheck.IsChecked == true;
+        if (wantStartup != Settings.StartWithWindows)
         {
-            SettingsManager.ApplyStartWithWindows(Settings.StartWithWindows);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show(this, $"Couldn't update the Windows startup entry: {ex.Message}",
-                "CharmDesk", MessageBoxButton.OK, MessageBoxImage.Warning);
+            var state = await StartupManager.SetEnabledAsync(wantStartup);
+            Settings.StartWithWindows = state == StartupState.Enabled;
+
+            // Windows can refuse: once someone turns the app off in Startup Apps / Task Manager,
+            // that choice sticks and the app can't override it. Say so instead of leaving a
+            // checkbox that silently snaps back.
+            if (wantStartup && state is StartupState.DisabledByUser or StartupState.DisabledByPolicy)
+            {
+                var reason = state == StartupState.DisabledByUser
+                    ? "CharmDesk was turned off in Windows' Startup Apps settings, so it can't re-enable itself.\n\nTurn it back on there (Settings > Apps > Startup) to start CharmDesk with Windows."
+                    : "Starting with Windows is blocked by your organization's policy.";
+                MessageBox.Show(this, reason, "CharmDesk", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+
+            _initializing = true;
+            StartWithWindowsCheck.IsChecked = Settings.StartWithWindows;
+            _initializing = false;
         }
 
         Persist();

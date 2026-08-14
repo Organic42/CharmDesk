@@ -65,6 +65,11 @@ public partial class App : Application
             _tray.ExitRequested += () => Shutdown();
 
             LaunchInitialCharm();
+
+            // Reconcile the persisted "start with Windows" flag with what Windows actually has
+            // registered. Fire-and-forget: it only affects what the Settings checkbox shows, so
+            // it must never delay the charm appearing.
+            _ = _settingsManager.SyncStartWithWindowsAsync();
         }
         catch (Exception ex)
         {

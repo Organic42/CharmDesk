@@ -1,16 +1,12 @@
 using System;
 using System.IO;
 using System.Text.Json;
-using Microsoft.Win32;
 
 namespace CharmDesk.Persistence;
 
 public sealed class SettingsManager
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
-
-    private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    private const string RunValueName = "CharmDesk";
 
     public string DataDirectory { get; }
     public string SettingsPath { get; }
@@ -22,11 +18,16 @@ public sealed class SettingsManager
         Directory.CreateDirectory(DataDirectory);
         SettingsPath = Path.Combine(DataDirectory, "settings.json");
         Current = Load();
+    }
 
-        // The checkbox should reflect reality, not just whatever we last wrote: if the entry
-        // was removed some other way (Windows' own Startup Apps settings, Task Manager, a
-        // clean uninstall/reinstall), settings.json would otherwise keep claiming it's on.
-        Current.StartWithWindows = IsStartWithWindowsRegistered();
+    /// <summary>Reconciles the persisted "start with Windows" flag against what Windows
+    /// actually has registered - the user can change it outside the app (Startup Apps settings,
+    /// Task Manager), and settings.json would otherwise keep claiming whatever it last wrote.
+    /// Async because the packaged StartupTask API is; call once at startup.</summary>
+    public async System.Threading.Tasks.Task SyncStartWithWindowsAsync()
+    {
+        var state = await StartupManager.GetStateAsync();
+        Current.StartWithWindows = state == StartupState.Enabled;
     }
 
     private AppSettings Load()
@@ -61,45 +62,4 @@ public sealed class SettingsManager
         }
     }
 
-    /// <summary>
-    /// Adds or removes the HKCU Run-key entry that launches CharmDesk at login.
-    ///
-    /// This is the correct mechanism for an unpackaged Win32 app. Once CharmDesk ships as an
-    /// MSIX (Microsoft Store) package, the sanctioned replacement is the
-    /// <c>Windows.ApplicationModel.StartupTask</c> API - but that API requires a startup-task
-    /// extension declared in the package manifest to have anything to look up, so it can only
-    /// be wired up alongside that packaging work, not before it. Swap this out then.
-    /// </summary>
-    public static void ApplyStartWithWindows(bool enabled)
-    {
-        using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: true);
-        if (key is null) return;
-
-        if (enabled)
-        {
-            var exePath = Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "CharmDesk.exe");
-            key.SetValue(RunValueName, $"\"{exePath}\"");
-        }
-        else
-        {
-            if (key.GetValue(RunValueName) is not null)
-                key.DeleteValue(RunValueName, throwOnMissingValue: false);
-        }
-    }
-
-    /// <summary>Reads back whether the Run-key entry actually exists right now, rather than
-    /// trusting whatever settings.json last remembered.</summary>
-    public static bool IsStartWithWindowsRegistered()
-    {
-        try
-        {
-            using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: false);
-            return key?.GetValue(RunValueName) is not null;
-        }
-        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException)
-        {
-            Logger.Log("SettingsManager.IsStartWithWindowsRegistered", ex);
-            return false;
-        }
-    }
 }

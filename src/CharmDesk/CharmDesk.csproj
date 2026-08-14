@@ -2,7 +2,12 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <!-- Targets a Windows SDK version (rather than plain net8.0-windows) to get the WinRT
+         projections for Windows.ApplicationModel.StartupTask, which is how a packaged/Store app
+         is supposed to register "start at login". Kept at 17763 to match the MSIX manifest's
+         MinVersion so this doesn't quietly raise the app's minimum Windows requirement. -->
+    <TargetFramework>net8.0-windows10.0.17763.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
@@ -11,6 +16,18 @@
     <AssemblyName>CharmDesk</AssemblyName>
     <RootNamespace>CharmDesk</RootNamespace>
     <ApplicationIcon>Resources\tray.ico</ApplicationIcon>
+
+    <!-- Identity metadata: surfaces in the exe's file properties, and should be kept in step
+         with Package.appxmanifest's Identity/Version (which uses a 4-part x.y.z.0 form, with
+         the revision reserved by the Store). -->
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Product>CharmDesk</Product>
+    <Authors>Sarthak Wage</Authors>
+    <Company>Organic42</Company>
+    <Description>Collectible pixel-art charms that hang off the edge of your desktop with real physics.</Description>
+    <Copyright>Copyright © 2026 Sarthak Wage</Copyright>
     <!-- Framework-dependent by default: the app (~5K LOC) doesn't need its own copy of the
          .NET+WPF runtime bundled in. A self-contained single-file publish was ~163MB; this
          drops the published output to a few MB and relies on the .NET 8 Desktop Runtime being
