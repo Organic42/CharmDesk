@@ -1,0 +1,183 @@
+using System;
+using System.IO;
+using System.Linq;
+using System.Windows;
+using CharmDesk.Core;
+using CharmDesk.Persistence;
+using CharmDesk.Tray;
+using CharmDesk.Windows;
+
+namespace CharmDesk;
+
+public partial class App : Application
+{
+    private SettingsManager _settingsManager = null!;
+    private CharmRegistry _registry = null!;
+    private TrayIconManager _tray = null!;
+    private CharmWindow? _charmWindow;
+    private CharmLibraryWindow? _libraryWindow;
+    private SettingsWindow? _settingsWindow;
+
+    public CharmRegistry Registry => _registry;
+    public SettingsManager Settings => _settingsManager;
+
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        base.OnStartup(e);
+
+        var dataDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CharmDesk");
+        Logger.Initialize(dataDir);
+
+        DispatcherUnhandledException += (_, args) =>
+        {
+            Logger.Log("UI thread", args.Exception);
+            // Keep the tray running rather than vanishing outright - a background utility
+            // that disappears without a trace is worse than one that logs and carries on.
+            args.Handled = true;
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            if (args.ExceptionObject is Exception ex) Logger.Log("AppDomain (fatal)", ex);
+        };
+        System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            Logger.Log("Unobserved task", args.Exception);
+            args.SetObserved();
+        };
+
+        try
+        {
+            _settingsManager = new SettingsManager(dataDir);
+
+            var charmsDir = Path.Combine(dataDir, "charms");
+            _registry = new CharmRegistry(charmsDir);
+            var bundledCharmsDir = Path.Combine(AppContext.BaseDirectory, "charms");
+            _registry.SeedFromBundledIfEmpty(bundledCharmsDir);
+
+            _tray = new TrayIconManager();
+            _tray.ShowCharmRequested += OnShowCharmRequested;
+            _tray.HideCharmRequested += OnHideCharmRequested;
+            _tray.ChangeCharmRequested += ActivateCharm;
+            _tray.OpenLibraryRequested += OpenLibrary;
+            _tray.OpenSettingsRequested += OpenSettings;
+            _tray.ResetPositionRequested += () => _charmWindow?.ResetPosition();
+            _tray.ExitRequested += () => Shutdown();
+
+            LaunchInitialCharm();
+        }
+        catch (Exception ex)
+        {
+            Logger.Log("Startup", ex);
+            MessageBox.Show(
+                "CharmDesk couldn't start up correctly. Check %AppData%\\CharmDesk\\logs\\charmdesk.log for details.",
+                "CharmDesk", MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown(1);
+        }
+    }
+
+    private void LaunchInitialCharm()
+    {
+        var all = _registry.LoadAll();
+        var enabled = all.Where(c => c.Manifest.Enabled).ToList();
+        var chosen =
+            enabled.FirstOrDefault(c => string.Equals(c.Manifest.Id, _settingsManager.Current.SelectedCharmId, StringComparison.OrdinalIgnoreCase)) ??
+            enabled.FirstOrDefault(c => string.Equals(c.Manifest.Id, _settingsManager.Current.DefaultCharmId, StringComparison.OrdinalIgnoreCase)) ??
+            enabled.FirstOrDefault();
+
+        _tray.RefreshCharmList(all, chosen?.Manifest.Id);
+
+        if (chosen is null)
+        {
+            _tray.ShowBalloon("CharmDesk", "No charms installed yet - open the Charm Library to add one.");
+            return;
+        }
+
+        _settingsManager.Current.SelectedCharmId = chosen.Manifest.Id;
+        _settingsManager.Current.DefaultCharmId ??= chosen.Manifest.Id;
+        _settingsManager.Save();
+
+        CreateCharmWindow(chosen);
+        if (!_settingsManager.Current.CharmVisible)
+            _charmWindow?.HideCharm();
+        _tray.SetCharmVisible(_settingsManager.Current.CharmVisible);
+    }
+
+    private void CreateCharmWindow(CharmPackage package)
+    {
+        // HideCharm() stops the render timer before Close(); without it, switching charms
+        // mid-swing leaves the old window's DispatcherTimer (and the window itself) alive
+        // until its physics happens to decay to rest.
+        _charmWindow?.HideCharm();
+        _charmWindow?.Close();
+        _charmWindow = new CharmWindow(package, _settingsManager, _tray);
+        _charmWindow.Show();
+    }
+
+    public void ActivateCharm(string id)
+    {
+        var pkg = _registry.Find(id);
+        if (pkg is null) return;
+
+        _settingsManager.Current.SelectedCharmId = id;
+        _settingsManager.Save();
+        CreateCharmWindow(pkg);
+        _settingsManager.Current.CharmVisible = true;
+        _tray.SetCharmVisible(true);
+        _tray.RefreshCharmList(_registry.LoadAll(), id);
+    }
+
+    private void OnShowCharmRequested()
+    {
+        _settingsManager.Current.CharmVisible = true;
+        _settingsManager.Save();
+        if (_charmWindow is null) { LaunchInitialCharm(); return; }
+        _charmWindow.ShowCharm();
+        _tray.SetCharmVisible(true);
+    }
+
+    private void OnHideCharmRequested()
+    {
+        _settingsManager.Current.CharmVisible = false;
+        _settingsManager.Save();
+        _charmWindow?.HideCharm();
+        _tray.SetCharmVisible(false);
+    }
+
+    /// <summary>Called by the Library/Manager windows after charms are imported, edited, or deleted.</summary>
+    public void RefreshAfterLibraryChange()
+    {
+        var all = _registry.LoadAll();
+        _tray.RefreshCharmList(all, _settingsManager.Current.SelectedCharmId);
+
+        // If the active charm was deleted or disabled out from under us, fall back gracefully.
+        var stillValid = all.Any(c => c.Manifest.Enabled &&
+            string.Equals(c.Manifest.Id, _settingsManager.Current.SelectedCharmId, StringComparison.OrdinalIgnoreCase));
+        if (!stillValid)
+            LaunchInitialCharm();
+    }
+
+    public void ApplySettingsToCharm() => _charmWindow?.ApplySettingsChanged();
+
+    public void ResetActiveCharmPosition() => _charmWindow?.ResetPosition();
+
+    private void OpenLibrary()
+    {
+        if (_libraryWindow is { IsVisible: true }) { _libraryWindow.Activate(); return; }
+        _libraryWindow = new CharmLibraryWindow(this);
+        _libraryWindow.Show();
+    }
+
+    private void OpenSettings()
+    {
+        if (_settingsWindow is { IsVisible: true }) { _settingsWindow.Activate(); return; }
+        _settingsWindow = new SettingsWindow(this);
+        _settingsWindow.Show();
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        _tray?.Dispose();
+        base.OnExit(e);
+    }
+}

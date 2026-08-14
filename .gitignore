@@ -1,0 +1,28 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+publish/
+*.pdb
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+
+# MSIX packaging output
+AppPackages/
+BundleArtifacts/
+*.appx
+*.appxbundle
+*.appxupload
+*.msix
+*.msixbundle
+*.msixupload
+
+# OS cruft
+Thumbs.db
+.DS_Store
+
+# Local scratch (font source, one-off asset scripts' working files)
+assets_gen/__pycache__/

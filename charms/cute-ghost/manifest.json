@@ -1,0 +1,17 @@
+{
+  "id": "cute-ghost",
+  "name": "Boo",
+  "description": "A friendly little ghost with a heart to give away.",
+  "category": "Cute",
+  "image": "charm.png",
+  "thumbnail": "thumbnail.png",
+  "enabled": true,
+  "displayScale": 1.0,
+  "physics": {
+    "stringLength": 118,
+    "gravity": 980,
+    "damping": 0.94,
+    "stiffness": 0.15,
+    "mass": 0.85
+  }
+}

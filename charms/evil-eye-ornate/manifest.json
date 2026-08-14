@@ -1,0 +1,17 @@
+{
+  "id": "evil-eye-ornate",
+  "name": "Gilded Evil Eye",
+  "description": "An ornate nazar charm with a satin bow and dangling gold-capped drops.",
+  "category": "Traditional",
+  "image": "charm.png",
+  "thumbnail": "thumbnail.png",
+  "enabled": true,
+  "displayScale": 1.0,
+  "physics": {
+    "stringLength": 128,
+    "gravity": 980,
+    "damping": 0.9,
+    "stiffness": 0.15,
+    "mass": 1.25
+  }
+}

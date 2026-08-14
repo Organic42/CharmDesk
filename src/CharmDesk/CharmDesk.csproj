@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AssemblyName>CharmDesk</AssemblyName>
+    <RootNamespace>CharmDesk</RootNamespace>
+    <ApplicationIcon>Resources\tray.ico</ApplicationIcon>
+    <!-- Framework-dependent by default: the app (~5K LOC) doesn't need its own copy of the
+         .NET+WPF runtime bundled in. A self-contained single-file publish was ~163MB; this
+         drops the published output to a few MB and relies on the .NET 8 Desktop Runtime being
+         present (which the Microsoft Store installs automatically as an MSIX dependency once
+         this ships there - see the packaging project when that's set up). IL trimming only
+         applies to self-contained deployments, so it's intentionally not used here. -->
+    <SelfContained>false</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- WPF's text/font engine (typography + script analysis for text layout) depends on
+         real culture data; InvariantGlobalization crashes it (MS.Internal.FontCache.MajorLanguages
+         throws CultureNotFoundException the first time a TextBlock needs a typography check).
+         Not a safe trim option for a WPF app - do not re-enable. -->
+    <!-- DPI awareness is declared in app.manifest (WPF's mechanism); this project never calls
+         System.Windows.Forms.Application.Run, so the WinForms analyzer's suggestion doesn't apply. -->
+    <NoWarn>$(NoWarn);WFAC010</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Bundled default charm packages, copied next to the exe as charms/<id>/... -->
+    <Content Include="..\..\charms\**\*.*">
+      <Link>charms\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- UI typefaces, embedded so the management windows don't depend on what's installed. -->
+    <Resource Include="Fonts\*.ttf" />
+  </ItemGroup>
+
+</Project>
