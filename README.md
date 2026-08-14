@@ -131,7 +131,7 @@ entered the charm" transition; everything after runs through normal WPF input.
 - [x] Core physics + drag interaction
 - [x] Charm Library, Manager, Settings
 - [x] Framework-dependent, trimmed-down publish
-- [ ] MSIX packaging for Microsoft Store submission
+- [x] MSIX packaging (see [packaging/](packaging/)) - builds and installs locally; Store submission needs a real Partner Center identity swapped in
 - [ ] Store listing (icons, screenshots, privacy policy)
 
 ## Contributing

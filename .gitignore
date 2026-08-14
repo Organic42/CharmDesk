@@ -13,12 +13,15 @@ publish/
 # MSIX packaging output
 AppPackages/
 BundleArtifacts/
+packaging/_staging/
+packaging/_out/
 *.appx
 *.appxbundle
 *.appxupload
 *.msix
 *.msixbundle
 *.msixupload
+*.pfx
 
 # OS cruft
 Thumbs.db
