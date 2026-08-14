@@ -1,0 +1,63 @@
+<Window x:Class="CharmDesk.Windows.AboutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="About CharmDesk" Height="620" Width="460"
+        MinHeight="420" MinWidth="380"
+        Background="{StaticResource PegboardBrush}"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+    <!-- Body scrolls and the footer is pinned, so nothing can be clipped off the bottom at
+         higher display scaling or a smaller window. -->
+    <Grid Margin="26,22,26,18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" Padding="0,0,4,0">
+            <StackPanel>
+                <!-- A charm on a string, echoing the product itself -->
+                <Grid Height="104" Margin="0,0,0,4">
+                    <Line X1="0" Y1="0" X2="0" Y2="30" Stroke="#B8B4AC" StrokeThickness="1.3"
+                          HorizontalAlignment="Center" VerticalAlignment="Top"/>
+                    <Ellipse Width="8" Height="8" Fill="{StaticResource GoldBrush}"
+                             HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,-4,0,0"/>
+                    <Image x:Name="CharmArt" Height="70" Stretch="Uniform"
+                           VerticalAlignment="Bottom" HorizontalAlignment="Center"
+                           RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+                </Grid>
+
+                <TextBlock Text="A B O U T" Style="{StaticResource Eyebrow}" HorizontalAlignment="Center"/>
+                <TextBlock Text="CharmDesk" Style="{StaticResource H1}" HorizontalAlignment="Center" Margin="0,2,0,2"/>
+                <TextBlock x:Name="VersionText" HorizontalAlignment="Center" Margin="0,0,0,16"
+                           FontFamily="{StaticResource FontMono}" FontSize="11"
+                           Foreground="{StaticResource TextSecondaryBrush}"/>
+
+                <Border Style="{StaticResource CardBorder}" Padding="18,16,18,16">
+                    <StackPanel>
+                        <TextBlock TextWrapping="Wrap" LineHeight="19" Foreground="{StaticResource TextPrimaryBrush}"
+                                   Text="Charms are having a moment. They're on bags, on phones, clipped to keyrings and water bottles. Desktops — the one screen most of us stare at all day — don't get any."/>
+
+                        <TextBlock TextWrapping="Wrap" LineHeight="19" Margin="0,12,0,0" Foreground="{StaticResource TextPrimaryBrush}"
+                                   Text="CharmDesk is a small attempt to fix that. Every charm hangs from a real 2D pendulum simulation, so when you grab one and let go it swings and settles like an actual object on a string, rather than replaying a canned animation. That physical feel is the whole point."/>
+
+                        <TextBlock Text="Made by Sarthak Wage." Margin="0,16,0,0"
+                                   FontFamily="{StaticResource FontDisplaySemi}" FontSize="14"
+                                   Foreground="{StaticResource AccentBrush}"/>
+
+                        <Border Height="1" Background="{StaticResource BorderBrush1}" Margin="0,16,0,12"/>
+
+                        <!-- Fredoka and Space Mono ship embedded in the exe; the SIL OFL asks that
+                             the fonts' origin travel with them when redistributed, so this stays. -->
+                        <TextBlock TextWrapping="Wrap" LineHeight="16" FontSize="11"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Text="Typefaces: Fredoka by Milena Brandão &amp; Hafontia, and Space Mono by Colophon Foundry. Both used under the SIL Open Font License 1.1."/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Button Grid.Row="1" Content="Close" Style="{StaticResource AccentButton}"
+                HorizontalAlignment="Center" Margin="0,16,0,0" Click="CloseButton_Click"/>
+    </Grid>
+</Window>

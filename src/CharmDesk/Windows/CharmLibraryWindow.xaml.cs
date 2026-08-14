@@ -299,6 +299,9 @@ public partial class CharmLibraryWindow : Window
         }
     }
 
+    private void AboutButton_Click(object sender, RoutedEventArgs e) =>
+        new AboutWindow(_app.Registry) { Owner = this }.ShowDialog();
+
     // ---- Export / drag-drop import -----------------------------------------
 
     private void ExportPack(CharmPackage package)

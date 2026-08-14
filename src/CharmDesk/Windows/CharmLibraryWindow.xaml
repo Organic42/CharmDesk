@@ -10,11 +10,17 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Margin="0,0,0,20">
-            <TextBlock Text="Y O U R   C O L L E C T I O N" Style="{StaticResource Eyebrow}"/>
-            <TextBlock Text="Charm Library" Style="{StaticResource H1}" Margin="0,3,0,4"/>
-            <TextBlock Text="Pick one to hang on your desktop. Drag a PNG or a .zip charm pack in to add it." Style="{StaticResource Muted}"/>
-        </StackPanel>
+        <Grid Grid.Row="0" Margin="0,0,0,20">
+            <StackPanel HorizontalAlignment="Left">
+                <TextBlock Text="Y O U R   C O L L E C T I O N" Style="{StaticResource Eyebrow}"/>
+                <TextBlock Text="Charm Library" Style="{StaticResource H1}" Margin="0,3,0,4"/>
+                <TextBlock Text="Pick one to hang on your desktop. Drag a PNG or a .zip charm pack in to add it." Style="{StaticResource Muted}"/>
+            </StackPanel>
+            <Button Content="About" Style="{StaticResource IconButton}"
+                    HorizontalAlignment="Right" VerticalAlignment="Top"
+                    Foreground="{StaticResource TextSecondaryBrush}"
+                    Click="AboutButton_Click"/>
+        </Grid>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,6,0,0">
             <WrapPanel x:Name="CardsPanel" Orientation="Horizontal"/>
