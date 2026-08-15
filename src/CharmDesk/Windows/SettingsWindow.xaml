@@ -32,12 +32,24 @@
             <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
                 <StackPanel>
                     <TextBlock Text="Default Charm" Style="{StaticResource Label}"/>
-                    <ComboBox x:Name="DefaultCharmCombo" Margin="0,0,0,14" DisplayMemberPath="Name" SelectionChanged="DefaultCharmCombo_SelectionChanged"
-                              AutomationProperties.Name="Default charm"/>
+                    <ComboBox x:Name="DefaultCharmCombo" Margin="0,0,0,14" SelectionChanged="DefaultCharmCombo_SelectionChanged"
+                              AutomationProperties.Name="Default charm">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Name}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
 
                     <TextBlock Text="Monitor" Style="{StaticResource Label}"/>
-                    <ComboBox x:Name="MonitorCombo" DisplayMemberPath="Label" SelectionChanged="MonitorCombo_SelectionChanged"
-                              AutomationProperties.Name="Monitor"/>
+                    <ComboBox x:Name="MonitorCombo" SelectionChanged="MonitorCombo_SelectionChanged"
+                              AutomationProperties.Name="Monitor">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Label}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
                 </StackPanel>
             </Border>
 

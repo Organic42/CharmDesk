@@ -65,8 +65,14 @@
                                 AutomationProperties.Name="Display scale"/>
 
                         <TextBlock Text="Personality" Style="{StaticResource Label}"/>
-                        <ComboBox x:Name="PersonalityCombo" DisplayMemberPath="Label" SelectionChanged="PersonalityCombo_SelectionChanged"
-                                  AutomationProperties.Name="Personality"/>
+                        <ComboBox x:Name="PersonalityCombo" SelectionChanged="PersonalityCombo_SelectionChanged"
+                                  AutomationProperties.Name="Personality">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Label}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
                     </StackPanel>
                 </Border>
 
