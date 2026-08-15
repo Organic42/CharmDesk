@@ -22,3 +22,4 @@ global using VerticalAlignment = System.Windows.VerticalAlignment;
 global using DragEventArgs = System.Windows.DragEventArgs;
 global using DataFormats = System.Windows.DataFormats;
 global using DragDropEffects = System.Windows.DragDropEffects;
+global using ColorConverter = System.Windows.Media.ColorConverter;

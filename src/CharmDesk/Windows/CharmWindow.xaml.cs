@@ -39,6 +39,12 @@ public partial class CharmWindow : Window
     private readonly Stopwatch _clock = new();
     private double _lastTick;
 
+    /// <summary>Ticks once a second to keep a live ClockFace charm's readout current. Kept
+    /// entirely separate from the 60fps physics timer above: it has to keep running even while
+    /// the charm is at rest and that timer has stopped, and a once-a-second string update is
+    /// cheap enough to just always run rather than coupling it to render/idle state.</summary>
+    private DispatcherTimer? _clockTimer;
+
     private IntPtr _hwnd = IntPtr.Zero;
     private double _localAnchorX;
     private double _localAnchorY;
@@ -122,6 +128,7 @@ public partial class CharmWindow : Window
             _mouseHook?.Dispose();
             _timer?.Stop();
             _idleTimer?.Stop();
+            _clockTimer?.Stop();
         };
     }
 
@@ -198,15 +205,90 @@ public partial class CharmWindow : Window
 
         var scale = ScaleFactor();
         const double baseline = 96.0;
+        var pixelWidth = bmp is { PixelWidth: > 0 } ? bmp.PixelWidth : 1;
         var aspect = bmp is { PixelWidth: > 0 } ? (double)bmp.PixelHeight / bmp.PixelWidth : 1.0;
 
         _displayWidth = baseline * scale;
         _displayHeight = _displayWidth * aspect;
+        CharmVisual.Width = _displayWidth;
+        CharmVisual.Height = _displayHeight;
         CharmImage.Width = _displayWidth;
         CharmImage.Height = _displayHeight;
         _attachOffsetPixels = _displayHeight * AttachPointFractionY;
 
         _interaction.HitRadius = Math.Max(_displayWidth, _displayHeight) * 0.5;
+
+        // ClockFace coordinates are authored in the charm's native source-image pixels, so they
+        // scale by the same factor the image itself was just scaled by - stays correctly
+        // positioned at any DisplayScale/Charm Scale without the manifest needing to know either.
+        SetupClockFace(_displayWidth / pixelWidth);
+    }
+
+    /// <summary>Positions and starts (or stops) the live digital time readout for charms whose
+    /// manifest declares a ClockFace. A no-op that leaves the text collapsed for every ordinary
+    /// static-image charm.</summary>
+    private void SetupClockFace(double pixelScale)
+    {
+        var digital = _package.Manifest.ClockFace?.Digital;
+        if (digital is null)
+        {
+            ClockTimeText.Visibility = Visibility.Collapsed;
+            ClockDateText.Visibility = Visibility.Collapsed;
+            _clockTimer?.Stop();
+            return;
+        }
+
+        var boxLeft = digital.X * pixelScale;
+        var boxTop = digital.Y * pixelScale;
+        var boxWidth = digital.Width * pixelScale;
+        var boxHeight = digital.Height * pixelScale;
+
+        Canvas.SetLeft(ClockTimeText, boxLeft);
+        ClockTimeText.Width = boxWidth;
+        ClockTimeText.Foreground = ParseBrush(digital.TimeColor);
+        ClockTimeText.Visibility = Visibility.Visible;
+
+        ClockDateText.Visibility = digital.ShowDate ? Visibility.Visible : Visibility.Collapsed;
+        if (digital.ShowDate)
+        {
+            // Time takes the upper ~55% of the box, date the lower ~30%, so there's breathing
+            // room between the two lines rather than them touching.
+            Canvas.SetTop(ClockTimeText, boxTop + boxHeight * 0.06);
+            ClockTimeText.FontSize = Math.Max(6, boxHeight * 0.38);
+
+            Canvas.SetLeft(ClockDateText, boxLeft);
+            Canvas.SetTop(ClockDateText, boxTop + boxHeight * 0.60);
+            ClockDateText.Width = boxWidth;
+            ClockDateText.FontSize = Math.Max(5, boxHeight * 0.20);
+            ClockDateText.Foreground = ParseBrush(digital.DateColor);
+        }
+        else
+        {
+            Canvas.SetTop(ClockTimeText, boxTop + boxHeight * 0.30);
+            ClockTimeText.FontSize = Math.Max(6, boxHeight * 0.42);
+        }
+
+        UpdateClockText();
+        _clockTimer ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _clockTimer.Tick -= OnClockTick;
+        _clockTimer.Tick += OnClockTick;
+        _clockTimer.Start();
+    }
+
+    private void OnClockTick(object? sender, EventArgs e) => UpdateClockText();
+
+    private void UpdateClockText()
+    {
+        var now = DateTime.Now;
+        ClockTimeText.Text = now.ToString(Settings.Use24HourClock ? "HH:mm" : "h:mm tt");
+        if (ClockDateText.Visibility == Visibility.Visible)
+            ClockDateText.Text = now.ToString("ddd d").ToUpperInvariant();
+    }
+
+    private static SolidColorBrush ParseBrush(string hex)
+    {
+        try { return new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)); }
+        catch (FormatException) { return new SolidColorBrush(Colors.White); }
     }
 
     /// <summary>Sizes the overlay to fit the full swing arc and places it over the configured
@@ -428,8 +510,8 @@ public partial class CharmWindow : Window
         var bobY = _engine.BobY;
         var attachY = bobY - _displayHeight / 2 + _attachOffsetPixels;
 
-        Canvas.SetLeft(CharmImage, bobX - _displayWidth / 2);
-        Canvas.SetTop(CharmImage, bobY - _displayHeight / 2);
+        Canvas.SetLeft(CharmVisual, bobX - _displayWidth / 2);
+        Canvas.SetTop(CharmVisual, bobY - _displayHeight / 2);
         SpinTransform.Angle = _engine.Spin * 180.0 / Math.PI;
 
         Canvas.SetLeft(AnchorDot, _localAnchorX - AnchorDot.Width / 2);
@@ -473,12 +555,14 @@ public partial class CharmWindow : Window
         Show();
         EnsureTimerRunning();
         ScheduleIdleFlourish();
+        _clockTimer?.Start();
     }
 
     public void HideCharm()
     {
         _timer?.Stop();
         _idleTimer?.Stop();
+        _clockTimer?.Stop();
         Hide();
     }
 

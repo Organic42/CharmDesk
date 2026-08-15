@@ -42,11 +42,17 @@ day, built as a real physics simulation instead of a sprite that jiggles on a ti
 
 <table>
 <tr>
-<td align="center" width="33%"><img src="charms/evil-eye/thumbnail.png" width="120"><br><b>Evil Eye</b><br><sub>Traditional</sub></td>
-<td align="center" width="33%"><img src="charms/evil-eye-ornate/thumbnail.png" width="120"><br><b>Gilded Evil Eye</b><br><sub>Traditional</sub></td>
-<td align="center" width="33%"><img src="charms/cute-ghost/thumbnail.png" width="120"><br><b>Boo</b><br><sub>Cute</sub></td>
+<td align="center" width="25%"><img src="charms/timekeeper/thumbnail.png" width="120"><br><b>Timekeeper</b><br><sub>Flagship - live clock</sub></td>
+<td align="center" width="25%"><img src="charms/evil-eye/thumbnail.png" width="120"><br><b>Evil Eye</b><br><sub>Traditional</sub></td>
+<td align="center" width="25%"><img src="charms/evil-eye-ornate/thumbnail.png" width="120"><br><b>Gilded Evil Eye</b><br><sub>Traditional</sub></td>
+<td align="center" width="25%"><img src="charms/cute-ghost/thumbnail.png" width="120"><br><b>Boo</b><br><sub>Cute</sub></td>
 </tr>
 </table>
+
+**Timekeeper** is the one charm with a reason to stay on your desktop beyond looks: a live
+clock rendered on top of the charm art in real time (not baked into the image), so it swings,
+spins, and tells the actual time. See [Live-rendered charms](#live-rendered-charms) below for
+how that works.
 
 ## Building a charm package
 
@@ -83,6 +89,31 @@ charms/
 
 Every physics value is per-charm — a heavier charm drags differently than a light one. The
 in-app Charm Manager writes exactly this file for you, if you'd rather not hand-edit JSON.
+
+## Live-rendered charms
+
+Every charm above is a static image. Timekeeper isn't — its art is a blank display face, and
+`manifest.json` declares a `clockFace.digital` region (position, size, colors) in the source
+image's own pixel coordinates. At runtime `CharmWindow` draws live text into that region on a
+dedicated 1Hz timer, independent of the 60fps physics loop, so the clock keeps ticking even
+while the charm is sitting still (and the physics loop is allowed to sleep). The text layer
+lives inside the same transform as the charm image, so it inherits the pendulum's position and
+spin automatically — it swings and does a 360° with the rest of the charm on a double-click,
+exactly like a normal charm, with zero interaction code written specifically for it.
+
+```json
+"clockFace": {
+  "digital": {
+    "x": 296, "y": 305, "width": 424, "height": 351,
+    "showDate": true,
+    "timeColor": "#5FD4FF", "dateColor": "#3E8FB0"
+  }
+}
+```
+
+Any charm can opt into this the same way; nothing else changes. It's a small, deliberately
+narrow mechanism (one region type, digital text) rather than a general plugin system — easy to
+extend later (an analog hands layer, say) if a second live charm actually needs it.
 
 ## Getting started
 

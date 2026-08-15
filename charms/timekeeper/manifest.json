@@ -1,0 +1,29 @@
+{
+  "id": "timekeeper",
+  "name": "Timekeeper",
+  "description": "A live clock that actually hangs off your desktop. Grab it, spin it, glance at it - it's always telling real time.",
+  "category": "Flagship",
+  "image": "charm.png",
+  "thumbnail": "thumbnail.png",
+  "enabled": true,
+  "displayScale": 1.0,
+  "reactionStyle": "Default",
+  "physics": {
+    "stringLength": 130,
+    "gravity": 980,
+    "damping": 0.92,
+    "stiffness": 0.15,
+    "mass": 1.3
+  },
+  "clockFace": {
+    "digital": {
+      "x": 296,
+      "y": 305,
+      "width": 424,
+      "height": 351,
+      "showDate": true,
+      "timeColor": "#5FD4FF",
+      "dateColor": "#3E8FB0"
+    }
+  }
+}

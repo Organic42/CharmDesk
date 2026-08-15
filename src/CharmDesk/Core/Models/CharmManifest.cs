@@ -37,6 +37,32 @@ public sealed class CharmManifest
     public ReactionStyle ReactionStyle { get; set; } = ReactionStyle.Default;
     public CharmPhysicsSettings Physics { get; set; } = new();
 
+    /// <summary>Present only for charms whose art is a blank display face with live content
+    /// rendered on top - e.g. Timekeeper. Absent for every ordinary static-image charm.</summary>
+    public ClockFaceSettings? ClockFace { get; set; }
+
     [JsonIgnore]
     public string? SourceDirectory { get; set; }
+}
+
+/// <summary>Optional live-rendered overlay for a charm - currently just a digital time readout,
+/// with room to add an analog hands layer later without touching charms that don't use it.</summary>
+public sealed class ClockFaceSettings
+{
+    public ClockDigitalSettings? Digital { get; set; }
+}
+
+/// <summary>Placement and styling for a live digital time readout, in the charm's own source
+/// image pixel coordinates (top-left origin, unscaled). Scaled at render time by the same
+/// factor the charm image itself is scaled by, so it stays correctly positioned at any
+/// DisplayScale or Charm Scale setting.</summary>
+public sealed class ClockDigitalSettings
+{
+    public double X { get; set; }
+    public double Y { get; set; }
+    public double Width { get; set; }
+    public double Height { get; set; }
+    public bool ShowDate { get; set; } = true;
+    public string TimeColor { get; set; } = "#5FD4FF";
+    public string DateColor { get; set; } = "#3E8FB0";
 }

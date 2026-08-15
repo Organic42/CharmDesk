@@ -10,6 +10,7 @@ public sealed class AppSettings
     public bool CharmVisible { get; set; } = true;
     public bool SoundEffectsEnabled { get; set; } = true;
     public bool HasShownOnboarding { get; set; } = false;
+    public bool Use24HourClock { get; set; } = true;
 
     public string? DefaultCharmId { get; set; }
     public string? SelectedCharmId { get; set; }
