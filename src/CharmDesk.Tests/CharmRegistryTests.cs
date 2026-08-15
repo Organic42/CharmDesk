@@ -116,29 +116,74 @@ public sealed class CharmRegistryTests : IDisposable
     }
 
     [Fact]
-    public void SeedFromBundledIfEmpty_OnlySeedsWhenCharmsDirectoryIsEmpty()
+    public void SyncBundledCharms_SeedsOnFirstRunLikeBefore()
     {
-        // Must live outside _charmsDir - SeedFromBundledIfEmpty bails out as soon as the
-        // *destination* charms directory has any subdirectory at all, and dropping the bundled
-        // source inside it would trip that guard before seeding ever runs.
         var bundledDir = Path.Combine(Path.GetTempPath(), "CharmDeskTests", Guid.NewGuid().ToString("N") + "_bundled");
-        var bundledCharmDir = Path.Combine(bundledDir, "seed-charm");
-        Directory.CreateDirectory(bundledCharmDir);
-        File.WriteAllText(Path.Combine(bundledCharmDir, "manifest.json"),
-            """{"id":"seed-charm","name":"Seed Charm","image":"charm.png","thumbnail":"charm.png"}""");
-        File.WriteAllBytes(Path.Combine(bundledCharmDir, "charm.png"), [0x89, 0x50, 0x4E, 0x47]);
+        WriteBundledCharm(bundledDir, "seed-charm", "Seed Charm");
 
-        _registry.SeedFromBundledIfEmpty(bundledDir);
+        _registry.SyncBundledCharms(bundledDir);
+
         Assert.Single(_registry.LoadAll());
-
-        // Add a second, unrelated local charm, then try seeding again - the directory is no
-        // longer empty, so nothing bundled should be re-copied over it.
-        var sourcePng = WriteDummyPng(Path.Combine(_charmsDir, "_src2"));
-        _registry.Import(new CharmManifest { Id = "user-added", Name = "User Added" }, sourcePng, null);
-        _registry.SeedFromBundledIfEmpty(bundledDir);
-
-        Assert.Equal(2, _registry.LoadAll().Count);
+        Assert.Equal("Seed Charm", _registry.Find("seed-charm")!.Manifest.Name);
 
         Directory.Delete(bundledDir, recursive: true);
+    }
+
+    [Fact]
+    public void SyncBundledCharms_AddsANewlyBundledCharmToAnAlreadyPopulatedLibrary()
+    {
+        // Simulates the real scenario this exists for: a user who already has the app
+        // installed gets an update that bundles an additional charm - it should still reach
+        // them, not just fresh installs with an empty charms folder.
+        var bundledDir = Path.Combine(Path.GetTempPath(), "CharmDeskTests", Guid.NewGuid().ToString("N") + "_bundled");
+        WriteBundledCharm(bundledDir, "evil-eye", "Evil Eye");
+        _registry.SyncBundledCharms(bundledDir);
+        Assert.Single(_registry.LoadAll());
+
+        // User adds their own charm, unrelated to the bundle.
+        var sourcePng = WriteDummyPng(Path.Combine(_charmsDir, "_src2"));
+        _registry.Import(new CharmManifest { Id = "user-added", Name = "User Added" }, sourcePng, null);
+
+        // The "update" ships a second bundled charm alongside the original.
+        WriteBundledCharm(bundledDir, "cute-ghost", "Boo");
+        _registry.SyncBundledCharms(bundledDir);
+
+        var all = _registry.LoadAll();
+        Assert.Equal(3, all.Count);
+        Assert.Contains(all, p => p.Manifest.Id == "evil-eye");
+        Assert.Contains(all, p => p.Manifest.Id == "user-added");
+        Assert.Contains(all, p => p.Manifest.Id == "cute-ghost");
+
+        Directory.Delete(bundledDir, recursive: true);
+    }
+
+    [Fact]
+    public void SyncBundledCharms_NeverOverwritesAnAlreadyInstalledCharm()
+    {
+        // A charm the user has since edited via the Charm Manager must survive a re-sync of
+        // the same bundled charm - matching by folder name must not mean "always overwrite".
+        var bundledDir = Path.Combine(Path.GetTempPath(), "CharmDeskTests", Guid.NewGuid().ToString("N") + "_bundled");
+        WriteBundledCharm(bundledDir, "evil-eye", "Evil Eye");
+        _registry.SyncBundledCharms(bundledDir);
+
+        var installed = _registry.Find("evil-eye")!;
+        installed.Manifest.Name = "My Custom Eye";
+        installed.Manifest.DisplayScale = 2.0;
+        _registry.Save(installed);
+
+        _registry.SyncBundledCharms(bundledDir);
+
+        var reloaded = _registry.Find("evil-eye")!;
+        Assert.Equal("My Custom Eye", reloaded.Manifest.Name);
+        Assert.Equal(2.0, reloaded.Manifest.DisplayScale);
+    }
+
+    private static void WriteBundledCharm(string bundledDir, string id, string name)
+    {
+        var dir = Path.Combine(bundledDir, id);
+        Directory.CreateDirectory(dir);
+        File.WriteAllText(Path.Combine(dir, "manifest.json"),
+            $$"""{"id":"{{id}}","name":"{{name}}","image":"charm.png","thumbnail":"charm.png"}""");
+        File.WriteAllBytes(Path.Combine(dir, "charm.png"), [0x89, 0x50, 0x4E, 0x47]);
     }
 }

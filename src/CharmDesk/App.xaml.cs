@@ -53,7 +53,7 @@ public partial class App : Application
             var charmsDir = Path.Combine(dataDir, "charms");
             _registry = new CharmRegistry(charmsDir);
             var bundledCharmsDir = Path.Combine(AppContext.BaseDirectory, "charms");
-            _registry.SeedFromBundledIfEmpty(bundledCharmsDir);
+            _registry.SyncBundledCharms(bundledCharmsDir);
 
             _tray = new TrayIconManager();
             _tray.ShowCharmRequested += OnShowCharmRequested;

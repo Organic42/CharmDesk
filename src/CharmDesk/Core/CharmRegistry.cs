@@ -29,28 +29,36 @@ public sealed class CharmRegistry
         System.IO.Directory.CreateDirectory(CharmsDirectory);
     }
 
-    /// <summary>Copies bundled default charm packages into the user data dir on first run only.
-    /// Best-effort: a seeding failure shouldn't block the app from starting (the library will
-    /// just come up empty and the user can still import charms manually).</summary>
-    public void SeedFromBundledIfEmpty(string bundledCharmsDirectory)
+    /// <summary>Copies any bundled charm not already present in the user's library, matched by
+    /// folder name. Runs on every launch rather than only the first: a charm already installed
+    /// - including one the user has since edited via the Charm Manager - is left untouched, but
+    /// a charm added in a later app update still reaches existing installs instead of only ever
+    /// landing on a totally fresh one. Best-effort: a sync failure shouldn't block the app from
+    /// starting.</summary>
+    public void SyncBundledCharms(string bundledCharmsDirectory)
     {
         try
         {
             if (!System.IO.Directory.Exists(bundledCharmsDirectory))
                 return;
 
-            if (System.IO.Directory.EnumerateDirectories(CharmsDirectory).Any())
-                return;
+            var existingIds = new HashSet<string>(
+                System.IO.Directory.EnumerateDirectories(CharmsDirectory).Select(d => Path.GetFileName(d)!),
+                StringComparer.OrdinalIgnoreCase);
 
             foreach (var srcDir in System.IO.Directory.EnumerateDirectories(bundledCharmsDirectory))
             {
-                var destDir = Path.Combine(CharmsDirectory, Path.GetFileName(srcDir));
+                var id = Path.GetFileName(srcDir)!;
+                if (existingIds.Contains(id))
+                    continue;
+
+                var destDir = Path.Combine(CharmsDirectory, id);
                 CopyDirectory(srcDir, destDir);
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            Logger.Log("CharmRegistry.SeedFromBundledIfEmpty", ex);
+            Logger.Log("CharmRegistry.SyncBundledCharms", ex);
         }
     }
 
