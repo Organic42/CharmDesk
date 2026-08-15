@@ -47,11 +47,11 @@
 
                         <Border Height="1" Background="{StaticResource BorderBrush1}" Margin="0,16,0,12"/>
 
-                        <!-- Fredoka, Space Mono, and VT323 ship embedded in the exe; the SIL OFL
-                             asks that the fonts' origin travel with them when redistributed. -->
+                        <!-- Fredoka, Space Mono, and Silkscreen ship embedded in the exe; the
+                             SIL OFL asks that the fonts' origin travel with them when redistributed. -->
                         <TextBlock TextWrapping="Wrap" LineHeight="16" FontSize="11"
                                    Foreground="{StaticResource TextSecondaryBrush}"
-                                   Text="Typefaces: Fredoka by Milena Brandão &amp; Hafontia, Space Mono by Colophon Foundry, and VT323 by Peter Hull. All used under the SIL Open Font License 1.1."/>
+                                   Text="Typefaces: Fredoka by Milena Brandão &amp; Hafontia, Space Mono by Colophon Foundry, and Silkscreen by Jason Kottke. All used under the SIL Open Font License 1.1."/>
                     </StackPanel>
                 </Border>
             </StackPanel>

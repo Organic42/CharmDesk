@@ -26,12 +26,15 @@
                    RenderOptions.BitmapScalingMode="NearestNeighbor"
                    RenderOptions.EdgeMode="Aliased"
                    SnapsToDevicePixels="True"/>
-            <TextBlock x:Name="ClockTimeText" Visibility="Collapsed" TextAlignment="Center"
-                       HorizontalAlignment="Center"
-                       FontFamily="{StaticResource FontPixel}"/>
-            <TextBlock x:Name="ClockDateText" Visibility="Collapsed" TextAlignment="Center"
-                       HorizontalAlignment="Center"
-                       FontFamily="{StaticResource FontPixel}"/>
+            <!-- Viewbox auto-scales its text child to fit whatever box size/position is
+                 computed at runtime - robust to any font's actual glyph metrics, unlike a
+                 hand-tuned FontSize ratio that has to be re-guessed every time the font changes. -->
+            <Viewbox x:Name="ClockTimeBox" Visibility="Collapsed" Stretch="Uniform">
+                <TextBlock x:Name="ClockTimeText" FontFamily="{StaticResource FontPixelBold}"/>
+            </Viewbox>
+            <Viewbox x:Name="ClockDateBox" Visibility="Collapsed" Stretch="Uniform">
+                <TextBlock x:Name="ClockDateText" FontFamily="{StaticResource FontPixel}"/>
+            </Viewbox>
         </Canvas>
     </Canvas>
 </Window>

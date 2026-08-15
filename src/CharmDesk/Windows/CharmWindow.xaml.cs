@@ -226,47 +226,51 @@ public partial class CharmWindow : Window
 
     /// <summary>Positions and starts (or stops) the live digital time readout for charms whose
     /// manifest declares a ClockFace. A no-op that leaves the text collapsed for every ordinary
-    /// static-image charm.</summary>
+    /// static-image charm. Each line sits in its own Viewbox, which scales the text to fill
+    /// whatever box it's given - so a new/wider font never overflows the screen bezel the way a
+    /// hand-picked FontSize ratio would (that's exactly what broke switching fonts once already).</summary>
     private void SetupClockFace(double pixelScale)
     {
         var digital = _package.Manifest.ClockFace?.Digital;
         if (digital is null)
         {
-            ClockTimeText.Visibility = Visibility.Collapsed;
-            ClockDateText.Visibility = Visibility.Collapsed;
+            ClockTimeBox.Visibility = Visibility.Collapsed;
+            ClockDateBox.Visibility = Visibility.Collapsed;
             _clockTimer?.Stop();
             return;
         }
 
-        var boxLeft = digital.X * pixelScale;
+        // A small horizontal inset so text never touches the inner bezel edge.
+        var boxLeft = digital.X * pixelScale + digital.Width * pixelScale * 0.06;
         var boxTop = digital.Y * pixelScale;
-        var boxWidth = digital.Width * pixelScale;
+        var boxWidth = digital.Width * pixelScale * 0.88;
         var boxHeight = digital.Height * pixelScale;
 
-        Canvas.SetLeft(ClockTimeText, boxLeft);
-        ClockTimeText.Width = boxWidth;
         ClockTimeText.Foreground = ParseBrush(digital.TimeColor);
-        ClockTimeText.Visibility = Visibility.Visible;
+        ClockTimeBox.Visibility = Visibility.Visible;
 
-        ClockDateText.Visibility = digital.ShowDate ? Visibility.Visible : Visibility.Collapsed;
+        ClockDateBox.Visibility = digital.ShowDate ? Visibility.Visible : Visibility.Collapsed;
         if (digital.ShowDate)
         {
-            // Balanced top/gap/bottom margins around the two lines, tuned against VT323's
-            // actual rendered line height (visibly taller than its FontSize suggests) rather
-            // than an even split - an even split left a lot of dead space below the date line.
-            Canvas.SetTop(ClockTimeText, boxTop + boxHeight * 0.10);
-            ClockTimeText.FontSize = Math.Max(6, boxHeight * 0.36);
+            // Balanced top/gap/bottom margins around the two lines rather than an even split,
+            // which left a lot of dead space below the date line.
+            Canvas.SetLeft(ClockTimeBox, boxLeft);
+            Canvas.SetTop(ClockTimeBox, boxTop + boxHeight * 0.08);
+            ClockTimeBox.Width = boxWidth;
+            ClockTimeBox.Height = boxHeight * 0.42;
 
-            Canvas.SetLeft(ClockDateText, boxLeft);
-            Canvas.SetTop(ClockDateText, boxTop + boxHeight * 0.58);
-            ClockDateText.Width = boxWidth;
-            ClockDateText.FontSize = Math.Max(5, boxHeight * 0.22);
+            Canvas.SetLeft(ClockDateBox, boxLeft);
+            Canvas.SetTop(ClockDateBox, boxTop + boxHeight * 0.56);
+            ClockDateBox.Width = boxWidth;
+            ClockDateBox.Height = boxHeight * 0.30;
             ClockDateText.Foreground = ParseBrush(digital.DateColor);
         }
         else
         {
-            Canvas.SetTop(ClockTimeText, boxTop + boxHeight * 0.30);
-            ClockTimeText.FontSize = Math.Max(6, boxHeight * 0.42);
+            Canvas.SetLeft(ClockTimeBox, boxLeft);
+            Canvas.SetTop(ClockTimeBox, boxTop + boxHeight * 0.25);
+            ClockTimeBox.Width = boxWidth;
+            ClockTimeBox.Height = boxHeight * 0.5;
         }
 
         UpdateClockText();
