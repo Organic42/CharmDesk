@@ -136,7 +136,7 @@ public sealed class CharmRegistryTests : IDisposable
         // installed gets an update that bundles an additional charm - it should still reach
         // them, not just fresh installs with an empty charms folder.
         var bundledDir = Path.Combine(Path.GetTempPath(), "CharmDeskTests", Guid.NewGuid().ToString("N") + "_bundled");
-        WriteBundledCharm(bundledDir, "evil-eye", "Evil Eye");
+        WriteBundledCharm(bundledDir, "old-charm", "Old Charm");
         _registry.SyncBundledCharms(bundledDir);
         Assert.Single(_registry.LoadAll());
 
@@ -150,7 +150,7 @@ public sealed class CharmRegistryTests : IDisposable
 
         var all = _registry.LoadAll();
         Assert.Equal(3, all.Count);
-        Assert.Contains(all, p => p.Manifest.Id == "evil-eye");
+        Assert.Contains(all, p => p.Manifest.Id == "old-charm");
         Assert.Contains(all, p => p.Manifest.Id == "user-added");
         Assert.Contains(all, p => p.Manifest.Id == "cute-ghost");
 
@@ -164,16 +164,16 @@ public sealed class CharmRegistryTests : IDisposable
         // presence, so a bundled charm the user deleted via Charm Manager would silently come
         // back on the next sync. The caller (App.xaml.cs) now passes deleted ids as excludeIds.
         var bundledDir = Path.Combine(Path.GetTempPath(), "CharmDeskTests", Guid.NewGuid().ToString("N") + "_bundled");
-        WriteBundledCharm(bundledDir, "evil-eye", "Evil Eye");
+        WriteBundledCharm(bundledDir, "old-charm", "Old Charm");
         _registry.SyncBundledCharms(bundledDir);
-        Assert.NotNull(_registry.Find("evil-eye"));
+        Assert.NotNull(_registry.Find("old-charm"));
 
-        _registry.Delete(_registry.Find("evil-eye")!);
-        Assert.Null(_registry.Find("evil-eye"));
+        _registry.Delete(_registry.Find("old-charm")!);
+        Assert.Null(_registry.Find("old-charm"));
 
-        _registry.SyncBundledCharms(bundledDir, excludeIds: new[] { "evil-eye" });
+        _registry.SyncBundledCharms(bundledDir, excludeIds: new[] { "old-charm" });
 
-        Assert.Null(_registry.Find("evil-eye"));
+        Assert.Null(_registry.Find("old-charm"));
 
         Directory.Delete(bundledDir, recursive: true);
     }
@@ -184,18 +184,18 @@ public sealed class CharmRegistryTests : IDisposable
         // A charm the user has since edited via the Charm Manager must survive a re-sync of
         // the same bundled charm - matching by folder name must not mean "always overwrite".
         var bundledDir = Path.Combine(Path.GetTempPath(), "CharmDeskTests", Guid.NewGuid().ToString("N") + "_bundled");
-        WriteBundledCharm(bundledDir, "evil-eye", "Evil Eye");
+        WriteBundledCharm(bundledDir, "old-charm", "Old Charm");
         _registry.SyncBundledCharms(bundledDir);
 
-        var installed = _registry.Find("evil-eye")!;
-        installed.Manifest.Name = "My Custom Eye";
+        var installed = _registry.Find("old-charm")!;
+        installed.Manifest.Name = "My Custom Charm";
         installed.Manifest.DisplayScale = 2.0;
         _registry.Save(installed);
 
         _registry.SyncBundledCharms(bundledDir);
 
-        var reloaded = _registry.Find("evil-eye")!;
-        Assert.Equal("My Custom Eye", reloaded.Manifest.Name);
+        var reloaded = _registry.Find("old-charm")!;
+        Assert.Equal("My Custom Charm", reloaded.Manifest.Name);
         Assert.Equal(2.0, reloaded.Manifest.DisplayScale);
     }
 

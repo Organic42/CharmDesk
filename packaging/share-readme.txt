@@ -31,7 +31,7 @@ WHAT TO TRY
 - Right-click it for the menu (change charm, settings, quit).
 - It lives in your system tray (bottom-right, near the clock) - right-click
   the tray icon for the same menu.
-- Charm Library has three charms: Evil Eye, Gilded Evil Eye, and Boo.
+- Charm Library has three charms: Timekeeper, Gilded Evil Eye, and Boo.
 
 
 FEEDBACK WELCOME

@@ -13,7 +13,7 @@
 
 ---
 
-CharmDesk pins a collectible charm — an evil eye, a ghost, whatever you add next — to the top
+CharmDesk pins a collectible charm — a gilded evil eye, a ghost, whatever you add next — to the top
 of your screen. Grab it with your mouse, pull it, let go, and it swings and settles like an
 actual object on a string, not a CSS animation pretending to be one. It sits quietly in the
 system tray the rest of the time.
@@ -42,10 +42,9 @@ day, built as a real physics simulation instead of a sprite that jiggles on a ti
 
 <table>
 <tr>
-<td align="center" width="25%"><img src="charms/timekeeper/thumbnail.png" width="120"><br><b>Timekeeper</b><br><sub>Flagship - live clock</sub></td>
-<td align="center" width="25%"><img src="charms/evil-eye/thumbnail.png" width="120"><br><b>Evil Eye</b><br><sub>Traditional</sub></td>
-<td align="center" width="25%"><img src="charms/evil-eye-ornate/thumbnail.png" width="120"><br><b>Gilded Evil Eye</b><br><sub>Traditional</sub></td>
-<td align="center" width="25%"><img src="charms/cute-ghost/thumbnail.png" width="120"><br><b>Boo</b><br><sub>Cute</sub></td>
+<td align="center" width="33%"><img src="charms/timekeeper/thumbnail.png" width="120"><br><b>Timekeeper</b><br><sub>Flagship - live clock</sub></td>
+<td align="center" width="33%"><img src="charms/evil-eye-ornate/thumbnail.png" width="120"><br><b>Gilded Evil Eye</b><br><sub>Traditional</sub></td>
+<td align="center" width="33%"><img src="charms/cute-ghost/thumbnail.png" width="120"><br><b>Boo</b><br><sub>Cute</sub></td>
 </tr>
 </table>
 
@@ -61,7 +60,7 @@ next launch, no code involved:
 
 ```text
 charms/
-  evil-eye/
+  cute-ghost/
     manifest.json
     charm.png        # transparent PNG, pixel art recommended
     thumbnail.png
@@ -69,20 +68,21 @@ charms/
 
 ```json
 {
-  "id": "evil-eye",
-  "name": "Evil Eye",
-  "description": "A tiny protective hanging charm.",
-  "category": "Traditional",
+  "id": "cute-ghost",
+  "name": "Boo",
+  "description": "A friendly little ghost with a heart to give away.",
+  "category": "Cute",
   "image": "charm.png",
   "thumbnail": "thumbnail.png",
   "enabled": true,
   "displayScale": 1.0,
+  "reactionStyle": "Playful",
   "physics": {
-    "stringLength": 120,
+    "stringLength": 118,
     "gravity": 980,
-    "damping": 0.92,
+    "damping": 0.94,
     "stiffness": 0.15,
-    "mass": 1.0
+    "mass": 0.85
   }
 }
 ```

@@ -16,7 +16,7 @@ string, with momentum that carries over naturally from the drag. Click it for a 
 double-click for a spin, or just leave it be and it'll sway on its own every so often.
 
 WHAT'S IN THE BOX
-• A small starting collection of charms — an evil eye, a gilded evil eye, a friendly ghost
+• A small starting collection of charms — a live-clock charm, a gilded evil eye, a friendly ghost
 • A Charm Library to browse, preview, and switch between them
 • A Charm Manager to import your own PNG art and tune its physics, personality, and size on
   live sliders — no code, no rebuild
