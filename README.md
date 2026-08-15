@@ -143,6 +143,8 @@ web view. Chosen specifically for real per-pixel transparent windows, proper cli
 hit-testing, and a system tray that doesn't need a browser runtime behind it.
 
 ```text
+Commerce/        optional tip jar - Store in-app purchases when packaged, a donation
+                 link fallback when not (see packaging/tip-jar-setup.md)
 Core/            physics engine, charm manifest model, interaction system
 Native/          Win32 interop - click-through toggling, the global mouse-position hook
                  that makes click-through recoverable, DPI/monitor helpers

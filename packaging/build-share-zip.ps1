@@ -23,8 +23,13 @@ $zipPath  = Join-Path ([Environment]::GetFolderPath("Desktop")) "CharmDesk-v1.0-
 
 Write-Host "== Publishing self-contained build ==" -ForegroundColor Cyan
 Remove-Item $stageDir -Recurse -Force -ErrorAction SilentlyContinue
+# ReadyToRun precompiles to native code, so the first launch isn't waiting on the JIT for the
+# whole WPF startup path. Costs some file size, buys a noticeably faster cold start on the
+# modest laptops this build actually gets handed to. Not trimming: IL trimming is unsupported
+# for WPF and silently breaks XAML/reflection paths (see the note in CharmDesk.csproj).
 dotnet publish $srcProj -c Release -r win-x64 --self-contained true `
     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+    -p:PublishReadyToRun=true `
     -p:DebugType=None -p:DebugSymbols=false -o $stageDir
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed" }
 

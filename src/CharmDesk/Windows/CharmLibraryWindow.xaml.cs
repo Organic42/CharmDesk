@@ -118,7 +118,9 @@ public partial class CharmLibraryWindow : Window
         var thumbPath = File.Exists(package.ThumbnailPath) ? package.ThumbnailPath : package.ImagePath;
         if (File.Exists(thumbPath))
         {
-            image.Source = ImageLoader.TryLoad(thumbPath, "CharmLibraryWindow.BuildCard");
+            // Cards render at 116px tall; decoding at source size cost ~2.5MB per charm for
+            // thumbnails that are, in the bundled packs, nearly as large as the full art.
+            image.Source = ImageLoader.TryLoad(thumbPath, "CharmLibraryWindow.BuildCard", decodePixelWidth: 256);
         }
 
         var nameText = new TextBlock
@@ -312,7 +314,7 @@ public partial class CharmLibraryWindow : Window
     }
 
     private void AboutButton_Click(object sender, RoutedEventArgs e) =>
-        new AboutWindow(_app.Registry) { Owner = this }.ShowDialog();
+        new AboutWindow(_app) { Owner = this }.ShowDialog();
 
     // ---- Export / drag-drop import -----------------------------------------
 

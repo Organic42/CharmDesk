@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using CharmDesk.Core;
+using CharmDesk.Native;
 using CharmDesk.Persistence;
 using CharmDesk.Tray;
 using CharmDesk.Windows;
@@ -94,6 +95,22 @@ public partial class App : Application
 
         if (chosen is null)
         {
+            // Two very different situations produce "no charm on screen", and a balloon tip that
+            // disappears after a few seconds explains neither. The common one by far, for anyone
+            // handed the share zip, is running CharmDesk.exe straight out of Windows' zip
+            // preview: Explorer copies just the exe to a temp folder, leaving the charms behind,
+            // so the app starts, sits in the tray, and appears to do nothing at all.
+            if (!Directory.Exists(Path.Combine(AppContext.BaseDirectory, "charms")))
+            {
+                MessageBox.Show(
+                    "CharmDesk can't find its charm files, so there's nothing to hang on your desktop.\n\n" +
+                    "This usually means it was opened from inside the .zip. Extract the whole folder " +
+                    "somewhere first (your Desktop is fine), then run CharmDesk.exe from the extracted " +
+                    "folder - keeping it next to the 'charms' and 'Sounds' folders.",
+                    "CharmDesk", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             _tray.ShowBalloon("CharmDesk", "No charms installed yet - open the Charm Library to add one.");
             return;
         }
@@ -108,6 +125,25 @@ public partial class App : Application
         _tray.SetCharmVisible(_settingsManager.Current.CharmVisible);
 
         ScheduleOnboardingHintIfNeeded();
+        ScheduleStartupTrim();
+    }
+
+    /// <summary>Startup touches a lot of pages it never needs again (JIT, XAML parsing, charm
+    /// enumeration). Trimming once the app has settled into its steady state stops it from
+    /// holding that launch peak for the rest of the session. Delayed rather than immediate so
+    /// it can't trim pages the first few frames are still using.</summary>
+    private void ScheduleStartupTrim()
+    {
+        var timer = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.ApplicationIdle)
+        {
+            Interval = TimeSpan.FromSeconds(8),
+        };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            MemoryHelper.TrimWorkingSet();
+        };
+        timer.Start();
     }
 
     /// <summary>Shows a one-time balloon tip pointing out right-click and drag, since neither
@@ -191,13 +227,17 @@ public partial class App : Application
     {
         if (_libraryWindow is { IsVisible: true }) { _libraryWindow.Activate(); return; }
         _libraryWindow = new CharmLibraryWindow(this);
+        // The Library is the app's heaviest moment - it decodes a thumbnail per installed charm.
+        // Hand that memory back rather than sitting at the peak for the rest of the session.
+        _libraryWindow.Closed += (_, _) => MemoryHelper.TrimWorkingSet();
         _libraryWindow.Show();
     }
 
-    private void OpenSettings()
+    public void OpenSettings()
     {
         if (_settingsWindow is { IsVisible: true }) { _settingsWindow.Activate(); return; }
         _settingsWindow = new SettingsWindow(this);
+        _settingsWindow.Closed += (_, _) => MemoryHelper.TrimWorkingSet();
         _settingsWindow.Show();
     }
 

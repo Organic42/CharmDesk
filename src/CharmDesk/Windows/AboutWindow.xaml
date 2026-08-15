@@ -45,6 +45,9 @@
                                    FontFamily="{StaticResource FontDisplaySemi}" FontSize="14"
                                    Foreground="{StaticResource AccentBrush}"/>
 
+                        <Button x:Name="SupportButton" Content="Support CharmDesk" HorizontalAlignment="Left"
+                                Margin="0,10,0,0" Click="SupportButton_Click"/>
+
                         <Border Height="1" Background="{StaticResource BorderBrush1}" Margin="0,16,0,12"/>
 
                         <!-- Fredoka, Space Mono, and Silkscreen ship embedded in the exe; the

@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Forms;
+using CharmDesk.Commerce;
 using CharmDesk.Native;
 using CharmDesk.Persistence;
 
@@ -15,6 +18,7 @@ public partial class SettingsWindow : Window
     private AppSettings Settings => _app.Settings.Current;
     private bool _initializing = true;
     private bool _startupToggleInFlight;
+    private readonly Dictionary<Button, TipTier> _tipButtonTiers = new();
 
     private sealed record CharmComboItem(string Id, string Name);
     private sealed record MonitorComboItem(string? DeviceName, string Label);
@@ -50,6 +54,69 @@ public partial class SettingsWindow : Window
         MonitorCombo.SelectedItem = monitors.FirstOrDefault(m => m.DeviceName == Settings.MonitorDeviceName) ?? monitors.FirstOrDefault();
 
         _initializing = false;
+
+        InitializeTipJar();
+    }
+
+    private void InitializeTipJar()
+    {
+        _tipButtonTiers[TipSmallButton] = TipTier.Small;
+        _tipButtonTiers[TipMediumButton] = TipTier.Medium;
+        _tipButtonTiers[TipLargeButton] = TipTier.Large;
+
+        foreach (var (button, tier) in _tipButtonTiers)
+            button.Content = TipJarManager.DefaultLabel(tier);
+
+        if (TipJarManager.IsNativePurchaseAvailable)
+        {
+            NativeTipPanel.Visibility = Visibility.Visible;
+            ExternalTipButton.Visibility = Visibility.Collapsed;
+            _ = LoadTipPricesAsync();
+        }
+        else
+        {
+            NativeTipPanel.Visibility = Visibility.Collapsed;
+            ExternalTipButton.Visibility = Visibility.Visible;
+        }
+    }
+
+    /// <summary>Best-effort: if the Store can't be reached (offline, not associated with a
+    /// Partner Center listing yet, placeholder Store IDs), the buttons just keep their default
+    /// "Small/Medium/Large" labels with no price shown.</summary>
+    private async Task LoadTipPricesAsync()
+    {
+        var products = await TipJarManager.GetTipProductsAsync();
+        foreach (var product in products)
+        {
+            var button = _tipButtonTiers.FirstOrDefault(kv => kv.Value == product.Tier).Key;
+            if (button is not null && !string.IsNullOrWhiteSpace(product.FormattedPrice))
+                button.Content = $"{TipJarManager.DefaultLabel(product.Tier)} ({product.FormattedPrice})";
+        }
+    }
+
+    private async void TipButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || !_tipButtonTiers.TryGetValue(button, out var tier)) return;
+
+        foreach (var b in _tipButtonTiers.Keys) b.IsEnabled = false;
+        TipStatusText.Text = "Opening the Store checkout...";
+
+        var result = await TipJarManager.RequestTipAsync(tier);
+        TipStatusText.Text = result.Outcome switch
+        {
+            TipOutcome.Succeeded => result.Message ?? "Thank you!",
+            TipOutcome.Cancelled => "No worries - maybe another time.",
+            TipOutcome.NotAvailable => result.Message ?? "Native tipping isn't available on this build.",
+            _ => result.Message ?? "That didn't go through - try again in a moment.",
+        };
+
+        foreach (var b in _tipButtonTiers.Keys) b.IsEnabled = true;
+    }
+
+    private void ExternalTipButton_Click(object sender, RoutedEventArgs e)
+    {
+        TipJarManager.OpenExternalTipPage();
+        TipStatusText.Text = "Opened the donation page in your browser - thank you!";
     }
 
     private async void OnAnyChanged(object sender, RoutedEventArgs e)

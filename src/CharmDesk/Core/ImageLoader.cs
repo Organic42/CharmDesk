@@ -19,8 +19,18 @@ namespace CharmDesk.Core;
 public static class ImageLoader
 {
     /// <summary>Returns null (and logs) if the file can't be loaded as an image after a few
-    /// short retries for a transient lock (e.g. antivirus scanning a freshly-written file).</summary>
-    public static BitmapImage? TryLoad(string path, string context)
+    /// short retries for a transient lock (e.g. antivirus scanning a freshly-written file).
+    ///
+    /// <paramref name="decodePixelWidth"/> caps the decoded size for images that only ever render
+    /// small (library thumbnails, the About page's decoration). A decoded bitmap costs
+    /// width*height*4 bytes regardless of how small it's drawn, so a 957x660 "thumbnail" shown at
+    /// 116px was costing ~2.5MB of the process's working set for no visible benefit.
+    ///
+    /// Leave it null for anything whose on-screen size is derived from the source image's own
+    /// pixel dimensions - notably the live charm itself, where CharmWindow maps manifest
+    /// clockFace coordinates through <c>BitmapImage.PixelWidth</c>. Shrinking the decode there
+    /// would silently misplace the clock overlay.</summary>
+    public static BitmapImage? TryLoad(string path, string context, int? decodePixelWidth = null)
     {
         const int maxAttempts = 3;
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
@@ -29,9 +39,25 @@ public static class ImageLoader
             {
                 var bytes = File.ReadAllBytes(path);
                 using var stream = new MemoryStream(bytes);
+
+                // Clamp to the source's own width first. DecodePixelWidth larger than the source
+                // upsamples into a *bigger* buffer than decoding normally would, and resamples
+                // with a smoothing filter - which would both waste memory and visibly blur a
+                // small hand-made pixel-art charm, the one thing NearestNeighbor is there to
+                // avoid. DelayCreation reads just the header, not the pixels.
+                var effectiveWidth = 0;
+                if (decodePixelWidth is > 0)
+                {
+                    var probe = BitmapDecoder.Create(stream, BitmapCreateOptions.DelayCreation, BitmapCacheOption.None);
+                    if (probe.Frames.Count > 0 && probe.Frames[0].PixelWidth > decodePixelWidth.Value)
+                        effectiveWidth = decodePixelWidth.Value;
+                    stream.Position = 0;
+                }
+
                 var bmp = new BitmapImage();
                 bmp.BeginInit();
                 bmp.CacheOption = BitmapCacheOption.OnLoad;
+                if (effectiveWidth > 0) bmp.DecodePixelWidth = effectiveWidth;
                 bmp.StreamSource = stream;
                 bmp.EndInit();
                 bmp.Freeze();

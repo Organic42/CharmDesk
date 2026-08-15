@@ -54,6 +54,25 @@
                 </StackPanel>
             </Border>
 
+            <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                <StackPanel>
+                    <TextBlock Text="Support CharmDesk" Style="{StaticResource Label}"/>
+                    <TextBlock TextWrapping="Wrap" Margin="0,2,0,12" FontSize="12"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Text="CharmDesk is free, with no ads and nothing sent anywhere. If you're enjoying it, an optional tip helps keep it going - nothing changes either way."/>
+
+                    <UniformGrid x:Name="NativeTipPanel" Columns="3" Margin="0,0,0,4">
+                        <Button x:Name="TipSmallButton" Content="Small" Margin="0,0,6,0" Click="TipButton_Click"/>
+                        <Button x:Name="TipMediumButton" Content="Medium" Margin="0,0,6,0" Click="TipButton_Click"/>
+                        <Button x:Name="TipLargeButton" Content="Large" Click="TipButton_Click"/>
+                    </UniformGrid>
+
+                    <Button x:Name="ExternalTipButton" Content="Send a tip" Click="ExternalTipButton_Click" Visibility="Collapsed"/>
+
+                    <TextBlock x:Name="TipStatusText" Style="{StaticResource Muted}" Margin="0,10,0,0" TextWrapping="Wrap" Text=" "/>
+                </StackPanel>
+            </Border>
+
             <Button Content="Reset Position" Margin="0,0,0,14" Click="ResetPositionButton_Click"/>
 
             <Button Content="Copy Diagnostic Info" Margin="0,0,0,4" Click="CopyDiagnosticsButton_Click"

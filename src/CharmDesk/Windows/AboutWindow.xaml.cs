@@ -10,8 +10,11 @@ namespace CharmDesk.Windows;
 /// <summary>The About page, reached from the Charm Library header.</summary>
 public partial class AboutWindow : Window
 {
-    public AboutWindow(CharmRegistry registry)
+    private readonly App _app;
+
+    public AboutWindow(App app)
     {
+        _app = app;
         InitializeComponent();
 
         // Read the version from the assembly rather than hardcoding it, so this can't drift
@@ -29,7 +32,7 @@ public partial class AboutWindow : Window
             version = "1.0.0";
         VersionText.Text = $"version {version}";
 
-        ShowDecorativeCharm(registry);
+        ShowDecorativeCharm(app.Registry);
     }
 
     /// <summary>Hangs the active (or first available) charm at the top of the page. Purely
@@ -44,7 +47,8 @@ public partial class AboutWindow : Window
 
             var path = File.Exists(package.ImagePath) ? package.ImagePath : package.ThumbnailPath;
             if (File.Exists(path))
-                CharmArt.Source = ImageLoader.TryLoad(path, "AboutWindow");
+                // Purely decorative, drawn 70px tall - no reason to hold the full-size art.
+                CharmArt.Source = ImageLoader.TryLoad(path, "AboutWindow", decodePixelWidth: 256);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -53,4 +57,12 @@ public partial class AboutWindow : Window
     }
 
     private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
+
+    /// <summary>Sends the user to the full tip jar in Settings rather than duplicating the
+    /// purchase flow here - this button is just a low-key pointer to it.</summary>
+    private void SupportButton_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
+        _app.OpenSettings();
+    }
 }
