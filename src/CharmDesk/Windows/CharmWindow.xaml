@@ -21,8 +21,20 @@
             <Canvas.RenderTransform>
                 <RotateTransform x:Name="SpinTransform" Angle="0"/>
             </Canvas.RenderTransform>
+            <!-- BitmapCache is what makes this affordable on weak hardware. AllowsTransparency
+                 makes this a layered window, and WPF cannot hardware-accelerate those - the
+                 whole window is rasterised on the CPU, 60 times a second. Without a cache that
+                 means rescaling the source art (Timekeeper's is 1024x1258) down to ~240px on
+                 every single frame, which is what makes the charm flicker on integrated
+                 graphics. Cached, the expensive resample happens once and each frame only
+                 re-composites the result through the spin transform.
+
+                 Cached on the Image rather than on CharmVisual on purpose: the clock text is a
+                 sibling that changes once a second, and caching the shared parent would throw
+                 the charm's cache away every tick for no reason. -->
             <Image x:Name="CharmImage"
                    Stretch="Fill"
+                   CacheMode="BitmapCache"
                    RenderOptions.BitmapScalingMode="NearestNeighbor"
                    RenderOptions.EdgeMode="Aliased"
                    SnapsToDevicePixels="True"/>

@@ -16,6 +16,8 @@ public partial class AboutWindow : Window
     {
         _app = app;
         InitializeComponent();
+        // Fixed design sizes overflow small laptop screens once display scaling is on.
+        WindowSizing.KeepOnScreen(this);
 
         // Read the version from the assembly rather than hardcoding it, so this can't drift
         // out of step with the csproj / package manifest.

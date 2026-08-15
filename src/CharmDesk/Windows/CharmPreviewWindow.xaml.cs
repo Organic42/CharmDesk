@@ -37,6 +37,8 @@ public partial class CharmPreviewWindow : Window
         _interaction = new InteractionSystem(_engine, new DefaultCharmBehavior(package.Manifest.ReactionStyle));
 
         InitializeComponent();
+        // Fixed design sizes overflow small laptop screens once display scaling is on.
+        WindowSizing.KeepOnScreen(this);
         TitleText.Text = package.Manifest.Name;
 
         var bmp = ImageLoader.TryLoad(package.ImagePath, "CharmPreviewWindow");

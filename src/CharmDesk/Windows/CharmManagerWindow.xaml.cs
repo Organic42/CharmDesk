@@ -53,6 +53,8 @@ public partial class CharmManagerWindow : Window
         _previewInteraction = new InteractionSystem(_previewEngine);
 
         InitializeComponent();
+        // Fixed design sizes overflow small laptop screens once display scaling is on.
+        WindowSizing.KeepOnScreen(this);
         Closed += (_, _) => _previewTimer?.Stop();
 
         PreviewCanvas.MouseMove += (_, e) =>

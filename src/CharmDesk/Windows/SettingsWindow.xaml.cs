@@ -27,6 +27,8 @@ public partial class SettingsWindow : Window
     {
         _app = app;
         InitializeComponent();
+        // Fixed design sizes overflow small laptop screens once display scaling is on.
+        WindowSizing.KeepOnScreen(this);
 
         StartWithWindowsCheck.IsChecked = Settings.StartWithWindows;
         AlwaysOnTopCheck.IsChecked = Settings.AlwaysOnTop;

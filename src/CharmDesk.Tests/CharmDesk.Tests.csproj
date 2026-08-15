@@ -7,6 +7,9 @@
 
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <!-- WindowSizing's arithmetic is expressed in WPF's Rect/DIP terms, so exercising it needs
+         the same framework reference the app uses. -->
+    <UseWPF>true</UseWPF>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,3 +1,6 @@
+// Explicit rather than implicit: enabling UseWPF (needed to exercise WindowSizing's Rect maths)
+// switches this project to the WindowsDesktop SDK's implicit usings, which don't include System.IO.
+using System.IO;
 using System.IO.Compression;
 using CharmDesk.Core;
 using CharmDesk.Core.Models;

@@ -42,6 +42,8 @@ public partial class CharmLibraryWindow : Window
     {
         _app = app;
         InitializeComponent();
+        // Fixed design sizes overflow small laptop screens once display scaling is on.
+        WindowSizing.KeepOnScreen(this);
         Activated += (_, _) => RebuildCards();
         RebuildCards();
     }
