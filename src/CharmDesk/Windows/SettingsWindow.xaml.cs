@@ -14,6 +14,7 @@ public partial class SettingsWindow : Window
     private readonly App _app;
     private AppSettings Settings => _app.Settings.Current;
     private bool _initializing = true;
+    private bool _startupToggleInFlight;
 
     private sealed record CharmComboItem(string Id, string Name);
     private sealed record MonitorComboItem(string? DeviceName, string Label);
@@ -61,25 +62,46 @@ public partial class SettingsWindow : Window
         Settings.EnablePhysics = EnablePhysicsCheck.IsChecked == true;
 
         var wantStartup = StartWithWindowsCheck.IsChecked == true;
-        if (wantStartup != Settings.StartWithWindows)
+        if (wantStartup != Settings.StartWithWindows && !_startupToggleInFlight)
         {
-            var state = await StartupManager.SetEnabledAsync(wantStartup);
-            Settings.StartWithWindows = state == StartupState.Enabled;
-
-            // Windows can refuse: once someone turns the app off in Startup Apps / Task Manager,
-            // that choice sticks and the app can't override it. Say so instead of leaving a
-            // checkbox that silently snaps back.
-            if (wantStartup && state is StartupState.DisabledByUser or StartupState.DisabledByPolicy)
+            // Guards against a second toggle racing this one while the await below is in
+            // flight - StartupManager.SetEnabledAsync can hit the Store StartupTask API or a
+            // slow registry write, and without this two overlapping calls could both read/write
+            // Settings.StartWithWindows and leave the checkbox out of sync with reality.
+            _startupToggleInFlight = true;
+            StartWithWindowsCheck.IsEnabled = false;
+            try
             {
-                var reason = state == StartupState.DisabledByUser
-                    ? "CharmDesk was turned off in Windows' Startup Apps settings, so it can't re-enable itself.\n\nTurn it back on there (Settings > Apps > Startup) to start CharmDesk with Windows."
-                    : "Starting with Windows is blocked by your organization's policy.";
-                MessageBox.Show(this, reason, "CharmDesk", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
+                var state = await StartupManager.SetEnabledAsync(wantStartup);
+                Settings.StartWithWindows = state == StartupState.Enabled;
 
-            _initializing = true;
-            StartWithWindowsCheck.IsChecked = Settings.StartWithWindows;
-            _initializing = false;
+                // Windows can refuse: once someone turns the app off in Startup Apps / Task
+                // Manager, that choice sticks and the app can't override it. A write can also
+                // just fail outright (e.g. the Run key is locked down). Say so instead of
+                // leaving a checkbox that silently snaps back with no explanation.
+                if (wantStartup && state is StartupState.DisabledByUser or StartupState.DisabledByPolicy)
+                {
+                    var reason = state == StartupState.DisabledByUser
+                        ? "CharmDesk was turned off in Windows' Startup Apps settings, so it can't re-enable itself.\n\nTurn it back on there (Settings > Apps > Startup) to start CharmDesk with Windows."
+                        : "Starting with Windows is blocked by your organization's policy.";
+                    MessageBox.Show(this, reason, "CharmDesk", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else if (wantStartup && state == StartupState.Disabled)
+                {
+                    MessageBox.Show(this,
+                        "CharmDesk couldn't register itself to start with Windows. Nothing was changed.",
+                        "CharmDesk", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+
+                _initializing = true;
+                StartWithWindowsCheck.IsChecked = Settings.StartWithWindows;
+                _initializing = false;
+            }
+            finally
+            {
+                StartWithWindowsCheck.IsEnabled = true;
+                _startupToggleInFlight = false;
+            }
         }
 
         Persist();

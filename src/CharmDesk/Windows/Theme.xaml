@@ -296,6 +296,14 @@
                                 </ControlTemplate>
                             </ToggleButton.Template>
                         </ToggleButton>
+                        <!-- KNOWN GOTCHA: this closed-box display previously showed raw
+                             record.ToString() output (e.g. "CharmComboItem { Id = ..., Name =
+                             ... }") for a ComboBox bound via DisplayMemberPath alone - SelectionBoxItem
+                             did not apply it despite that being the documented behavior. Every
+                             ComboBox in this app works around it by setting an explicit
+                             ComboBox.ItemTemplate instead of DisplayMemberPath (see SettingsWindow.xaml,
+                             CharmManagerWindow.xaml). If you add a new ComboBox, do the same - do
+                             not rely on DisplayMemberPath here. -->
                         <ContentPresenter x:Name="content" IsHitTestVisible="False" Margin="{TemplateBinding Padding}"
                                           HorizontalAlignment="Left" VerticalAlignment="Center"
                                           Content="{TemplateBinding SelectionBoxItem}"

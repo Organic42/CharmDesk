@@ -101,8 +101,12 @@ public static class StartupManager
     {
         if (!IsPackaged)
         {
-            SetRunKey(enabled);
-            return enabled ? StartupState.Enabled : StartupState.Disabled;
+            var wrote = SetRunKey(enabled);
+            // Report what was actually achieved, not what was requested - SetRunKey can fail
+            // (e.g. the Run key is locked down by security software) and swallows that
+            // internally, so trusting `enabled` here would tell the caller a write succeeded
+            // when it didn't.
+            return wrote && enabled ? StartupState.Enabled : StartupState.Disabled;
         }
 
 #if PACKAGED_BUILD
@@ -125,8 +129,8 @@ public static class StartupManager
         }
 #else
         await Task.CompletedTask;
-        SetRunKey(enabled);
-        return enabled ? StartupState.Enabled : StartupState.Disabled;
+        var wroteFallback = SetRunKey(enabled);
+        return wroteFallback && enabled ? StartupState.Enabled : StartupState.Disabled;
 #endif
     }
 
@@ -157,12 +161,15 @@ public static class StartupManager
         }
     }
 
-    private static void SetRunKey(bool enabled)
+    /// <summary>Returns true only if the registry was actually updated as requested - a caller
+    /// that ignores this and assumes success can end up reporting "Start with Windows" as on
+    /// when the write silently failed.</summary>
+    private static bool SetRunKey(bool enabled)
     {
         try
         {
             using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: true);
-            if (key is null) return;
+            if (key is null) return false;
 
             if (enabled)
             {
@@ -173,10 +180,12 @@ public static class StartupManager
             {
                 key.DeleteValue(RunValueName, throwOnMissingValue: false);
             }
+            return true;
         }
         catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException)
         {
             Logger.Log($"StartupManager.SetRunKey({enabled})", ex);
+            return false;
         }
     }
 }

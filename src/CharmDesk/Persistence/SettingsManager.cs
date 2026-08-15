@@ -23,11 +23,21 @@ public sealed class SettingsManager
     /// <summary>Reconciles the persisted "start with Windows" flag against what Windows
     /// actually has registered - the user can change it outside the app (Startup Apps settings,
     /// Task Manager), and settings.json would otherwise keep claiming whatever it last wrote.
-    /// Async because the packaged StartupTask API is; call once at startup.</summary>
+    /// Async because the packaged StartupTask API is; call once at startup.
+    ///
+    /// Persists the reconciled value itself rather than leaving that to whatever Save() happens
+    /// to run next: LaunchInitialCharm() already calls Save() synchronously earlier in startup,
+    /// before this fire-and-forget call completes, so without an explicit Save() here a stale
+    /// value could stay on disk indefinitely if the app closes before anything else saves.</summary>
     public async System.Threading.Tasks.Task SyncStartWithWindowsAsync()
     {
         var state = await StartupManager.GetStateAsync();
-        Current.StartWithWindows = state == StartupState.Enabled;
+        var reconciled = state == StartupState.Enabled;
+        if (reconciled != Current.StartWithWindows)
+        {
+            Current.StartWithWindows = reconciled;
+            Save();
+        }
     }
 
     private AppSettings Load()

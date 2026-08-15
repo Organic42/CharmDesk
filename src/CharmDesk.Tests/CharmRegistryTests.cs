@@ -158,6 +158,27 @@ public sealed class CharmRegistryTests : IDisposable
     }
 
     [Fact]
+    public void SyncBundledCharms_DoesNotResurrectAnExcludedId()
+    {
+        // Regression test: SyncBundledCharms used to match "already installed" purely by folder
+        // presence, so a bundled charm the user deleted via Charm Manager would silently come
+        // back on the next sync. The caller (App.xaml.cs) now passes deleted ids as excludeIds.
+        var bundledDir = Path.Combine(Path.GetTempPath(), "CharmDeskTests", Guid.NewGuid().ToString("N") + "_bundled");
+        WriteBundledCharm(bundledDir, "evil-eye", "Evil Eye");
+        _registry.SyncBundledCharms(bundledDir);
+        Assert.NotNull(_registry.Find("evil-eye"));
+
+        _registry.Delete(_registry.Find("evil-eye")!);
+        Assert.Null(_registry.Find("evil-eye"));
+
+        _registry.SyncBundledCharms(bundledDir, excludeIds: new[] { "evil-eye" });
+
+        Assert.Null(_registry.Find("evil-eye"));
+
+        Directory.Delete(bundledDir, recursive: true);
+    }
+
+    [Fact]
     public void SyncBundledCharms_NeverOverwritesAnAlreadyInstalledCharm()
     {
         // A charm the user has since edited via the Charm Manager must survive a re-sync of

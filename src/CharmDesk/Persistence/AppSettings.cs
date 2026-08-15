@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace CharmDesk.Persistence;
 
 public sealed class AppSettings
@@ -14,6 +16,11 @@ public sealed class AppSettings
 
     public string? DefaultCharmId { get; set; }
     public string? SelectedCharmId { get; set; }
+
+    /// <summary>Ids the user has explicitly deleted via the Charm Manager. Checked by
+    /// CharmRegistry.SyncBundledCharms so a deleted bundled charm doesn't silently reappear the
+    /// next time the app launches and re-syncs the bundle.</summary>
+    public List<string> DeletedCharmIds { get; set; } = new();
 
     /// <summary>WinForms Screen.DeviceName of the chosen monitor; null = always use primary.</summary>
     public string? MonitorDeviceName { get; set; }

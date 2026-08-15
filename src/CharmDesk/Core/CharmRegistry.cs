@@ -33,9 +33,11 @@ public sealed class CharmRegistry
     /// folder name. Runs on every launch rather than only the first: a charm already installed
     /// - including one the user has since edited via the Charm Manager - is left untouched, but
     /// a charm added in a later app update still reaches existing installs instead of only ever
-    /// landing on a totally fresh one. Best-effort: a sync failure shouldn't block the app from
-    /// starting.</summary>
-    public void SyncBundledCharms(string bundledCharmsDirectory)
+    /// landing on a totally fresh one. <paramref name="excludeIds"/> lets a caller keep charms
+    /// the user has explicitly deleted from coming back - folder absence alone can't tell "never
+    /// installed" apart from "deliberately removed". Best-effort: a sync failure shouldn't block
+    /// the app from starting.</summary>
+    public void SyncBundledCharms(string bundledCharmsDirectory, IReadOnlyCollection<string>? excludeIds = null)
     {
         try
         {
@@ -45,6 +47,8 @@ public sealed class CharmRegistry
             var existingIds = new HashSet<string>(
                 System.IO.Directory.EnumerateDirectories(CharmsDirectory).Select(d => Path.GetFileName(d)!),
                 StringComparer.OrdinalIgnoreCase);
+            if (excludeIds is not null)
+                existingIds.UnionWith(excludeIds);
 
             foreach (var srcDir in System.IO.Directory.EnumerateDirectories(bundledCharmsDirectory))
             {

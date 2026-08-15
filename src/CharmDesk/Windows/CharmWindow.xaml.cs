@@ -52,6 +52,11 @@ public partial class CharmWindow : Window
     private double _displayHeight = 96;
     private double _attachOffsetPixels;
 
+    /// <summary>The ScaleFactor() a full LoadCharmImage() was last run with - lets
+    /// ApplySettingsChanged skip re-reading and re-decoding the charm's PNG from disk when a
+    /// settings change has nothing to do with size (e.g. toggling sound effects).</summary>
+    private double _lastScaleFactor = -1;
+
     private bool _anchorDragging;
     private double _anchorDragStartScreenX;
     private double _anchorDragStartLeft;
@@ -203,13 +208,15 @@ public partial class CharmWindow : Window
         var bmp = ImageLoader.TryLoad(_package.ImagePath, "CharmWindow.LoadCharmImage");
         CharmImage.Source = bmp;
 
+        var hasValidImage = bmp is { PixelWidth: > 0 };
         var scale = ScaleFactor();
         const double baseline = 96.0;
-        var pixelWidth = bmp is { PixelWidth: > 0 } ? bmp.PixelWidth : 1;
-        var aspect = bmp is { PixelWidth: > 0 } ? (double)bmp.PixelHeight / bmp.PixelWidth : 1.0;
+        var pixelWidth = hasValidImage ? bmp!.PixelWidth : 1;
+        var aspect = hasValidImage ? (double)bmp!.PixelHeight / bmp.PixelWidth : 1.0;
 
         _displayWidth = baseline * scale;
         _displayHeight = _displayWidth * aspect;
+        _lastScaleFactor = scale;
         CharmVisual.Width = _displayWidth;
         CharmVisual.Height = _displayHeight;
         CharmImage.Width = _displayWidth;
@@ -221,7 +228,13 @@ public partial class CharmWindow : Window
         // ClockFace coordinates are authored in the charm's native source-image pixels, so they
         // scale by the same factor the image itself was just scaled by - stays correctly
         // positioned at any DisplayScale/Charm Scale without the manifest needing to know either.
-        SetupClockFace(_displayWidth / pixelWidth);
+        // Skip it entirely when the image failed to load: pixelWidth's fallback of 1 would
+        // otherwise turn a ~0.2x scale factor into ~100x, placing the clock text tens of
+        // thousands of pixels outside the window instead of just not rendering.
+        if (hasValidImage)
+            SetupClockFace(_displayWidth / pixelWidth);
+        else
+            HideClockFace();
     }
 
     /// <summary>Positions and starts (or stops) the live digital time readout for charms whose
@@ -234,9 +247,7 @@ public partial class CharmWindow : Window
         var digital = _package.Manifest.ClockFace?.Digital;
         if (digital is null)
         {
-            ClockTimeBox.Visibility = Visibility.Collapsed;
-            ClockDateBox.Visibility = Visibility.Collapsed;
-            _clockTimer?.Stop();
+            HideClockFace();
             return;
         }
 
@@ -280,13 +291,26 @@ public partial class CharmWindow : Window
         _clockTimer.Start();
     }
 
+    /// <summary>Collapses both clock-text lines and stops the tick timer - shared by "this charm
+    /// has no ClockFace" and "the charm image failed to load, so there's no valid scale to
+    /// position the text with".</summary>
+    private void HideClockFace()
+    {
+        ClockTimeBox.Visibility = Visibility.Collapsed;
+        ClockDateBox.Visibility = Visibility.Collapsed;
+        _clockTimer?.Stop();
+    }
+
     private void OnClockTick(object? sender, EventArgs e) => UpdateClockText();
 
     private void UpdateClockText()
     {
         var now = DateTime.Now;
         ClockTimeText.Text = now.ToString(Settings.Use24HourClock ? "HH:mm" : "h:mm tt");
-        if (ClockDateText.Visibility == Visibility.Visible)
+        // ClockDateBox (the Viewbox) is what SetupClockFace actually toggles for ShowDate -
+        // ClockDateText's own Visibility is never set and stays at its XAML default of Visible,
+        // so checking that instead would never skip this regardless of ShowDate.
+        if (ClockDateBox.Visibility == Visibility.Visible)
             ClockDateText.Text = now.ToString("ddd d").ToUpperInvariant();
     }
 
@@ -579,8 +603,19 @@ public partial class CharmWindow : Window
 
         // Scale affects both the sprite size and the resting string length, so both the
         // image and the window's swing-arc bounds need to be recomputed.
-        _engine.Settings.StringLength = Math.Max(20, _package.Manifest.Physics.StringLength * ScaleFactor());
-        LoadCharmImage();
+        var newScale = ScaleFactor();
+        _engine.Settings.StringLength = Math.Max(20, _package.Manifest.Physics.StringLength * newScale);
+
+        // LoadCharmImage does a real disk read + bitmap decode (plus a clock-face layout/color
+        // reparse for ClockFace charms) - this fires on every settings change, including ones
+        // with nothing to do with size (sound effects, 24-hour clock, ...), so only pay for it
+        // when the scale actually changed. A live clock's display format can still depend on
+        // Settings even when scale didn't change, so keep that one cheap update either way.
+        if (Math.Abs(newScale - _lastScaleFactor) > 0.0001)
+            LoadCharmImage();
+        else if (_package.Manifest.ClockFace is not null)
+            UpdateClockText();
+
         LayoutAndPosition();
 
         EnsureTimerRunning();

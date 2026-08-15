@@ -362,6 +362,13 @@ public partial class CharmManagerWindow : Window
             return;
         }
 
+        // Remembered so a bundled charm the user deliberately removed doesn't get silently
+        // re-copied back in by CharmRegistry.SyncBundledCharms on the next launch.
+        var deletedIds = _app.Settings.Current.DeletedCharmIds;
+        if (!deletedIds.Contains(_editing.Manifest.Id, StringComparer.OrdinalIgnoreCase))
+            deletedIds.Add(_editing.Manifest.Id);
+        _app.Settings.Save();
+
         _app.RefreshAfterLibraryChange();
         Close();
     }

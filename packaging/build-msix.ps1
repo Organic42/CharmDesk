@@ -17,9 +17,27 @@ $srcProj    = Join-Path $repoRoot "src\CharmDesk\CharmDesk.csproj"
 $stagingDir = Join-Path $PSScriptRoot "_staging"
 $outDir     = Join-Path $PSScriptRoot "_out"
 $msixPath   = Join-Path $outDir "CharmDesk.msix"
-$sdkBin     = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64"
+
+# Resolve the installed Windows SDK dynamically rather than pinning an exact version - a
+# hardcoded "...\bin\10.0.26100.0\x64" path breaks the moment someone builds this on a machine
+# with a different SDK release installed, which CI never catches since it only runs
+# dotnet build/publish and never this script.
+$sdkRoot = "${env:ProgramFiles(x86)}\Windows Kits\10\bin"
+if (-not (Test-Path $sdkRoot)) {
+    throw "Windows 10/11 SDK not found under '$sdkRoot'. Install it via the Visual Studio Installer (Windows App SDK / Windows 10 or 11 SDK workload) and re-run this script."
+}
+$sdkVersionDir = Get-ChildItem $sdkRoot -Directory |
+    Where-Object { $_.Name -match '^10\.' -and (Test-Path (Join-Path $_.FullName "x64\makeappx.exe")) } |
+    Sort-Object Name -Descending |
+    Select-Object -First 1
+if (-not $sdkVersionDir) {
+    throw "No Windows SDK version under '$sdkRoot' has makeappx.exe/signtool.exe (x64). Install the Windows 10/11 SDK's app certification/signing tools."
+}
+$sdkBin     = Join-Path $sdkVersionDir.FullName "x64"
 $makeappx   = Join-Path $sdkBin "makeappx.exe"
 $signtool   = Join-Path $sdkBin "signtool.exe"
+Write-Host "Using Windows SDK $($sdkVersionDir.Name) ($sdkBin)" -ForegroundColor DarkGray
+
 $certSubject = "CN=DA524898-B8B3-4F9F-8851-8835755138A5" # must match Package.appxmanifest's Identity/Publisher
 $pfxPath    = Join-Path $PSScriptRoot "CharmDesk-test.pfx"
 $pfxPassword = "charmdesk-local-test"

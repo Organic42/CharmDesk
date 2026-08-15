@@ -10,6 +10,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Automation;
 using System.Windows.Input;
+using System.Text.Json;
 using CharmDesk.Core;
 using CharmDesk.Persistence;
 using Microsoft.Win32;
@@ -363,10 +364,13 @@ public partial class CharmLibraryWindow : Window
                 _app.RefreshAfterLibraryChange();
                 RebuildCards();
             }
-            catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
+            catch (Exception ex) when (ex is InvalidDataException or JsonException or IOException or UnauthorizedAccessException)
             {
                 Logger.Log("CharmLibraryWindow.Drop (zip)", ex);
-                MessageBox.Show(this, ex.Message, "CharmDesk", MessageBoxButton.OK, MessageBoxImage.Warning);
+                var message = ex is JsonException
+                    ? "This charm pack's manifest.json isn't valid - it may be corrupted."
+                    : ex.Message;
+                MessageBox.Show(this, message, "CharmDesk", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
         else
