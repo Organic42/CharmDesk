@@ -4,14 +4,11 @@
   (EntryPoint="Windows.FullTrustApplication") rather than a native UWP/WinUI app - CharmDesk
   stays a plain WPF app, MSIX is only a distribution wrapper around it.
 
-  BEFORE SUBMITTING TO THE MICROSOFT STORE:
-    - Reserve the app name in Partner Center, then replace Identity/@Name and Identity/@Publisher
-      below with the exact values Partner Center assigns (Publisher must match your account's
-      publisher CN precisely - it will NOT be "CN=Organic42").
-    - Re-sign with a certificate whose Subject matches the new Publisher value (see
-      packaging/build-msix.ps1 - for a Store submission the *.msixupload doesn't need to be
-      signed yourself at all; Partner Center re-signs on certification, so this only matters for
-      local sideload testing).
+  Identity/Publisher and Identity/Name below are the real values Partner Center assigned when
+  the app name was reserved - for a Store submission the *.msixupload doesn't need to be signed
+  yourself at all, Partner Center re-signs on certification. build-msix.ps1's self-signed test
+  certificate only exists for local sideload testing and must have a Subject matching Publisher
+  exactly, or Add-AppxPackage rejects the install.
 -->
 <Package
     xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
@@ -21,14 +18,14 @@
     IgnorableNamespaces="uap uap5 rescap">
 
   <Identity
-    Name="Organic42.CharmDesk"
-    Publisher="CN=Organic42"
+    Name="DelusionalWorks.CharmDesk"
+    Publisher="CN=DA524898-B8B3-4F9F-8851-8835755138A5"
     Version="1.0.0.0"
     ProcessorArchitecture="x64" />
 
   <Properties>
     <DisplayName>CharmDesk</DisplayName>
-    <PublisherDisplayName>Organic42</PublisherDisplayName>
+    <PublisherDisplayName>Delusional_Works</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 

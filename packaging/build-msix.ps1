@@ -20,7 +20,7 @@ $msixPath   = Join-Path $outDir "CharmDesk.msix"
 $sdkBin     = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64"
 $makeappx   = Join-Path $sdkBin "makeappx.exe"
 $signtool   = Join-Path $sdkBin "signtool.exe"
-$certSubject = "CN=Organic42"
+$certSubject = "CN=DA524898-B8B3-4F9F-8851-8835755138A5" # must match Package.appxmanifest's Identity/Publisher
 $pfxPath    = Join-Path $PSScriptRoot "CharmDesk-test.pfx"
 $pfxPassword = "charmdesk-local-test"
 
