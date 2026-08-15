@@ -251,15 +251,16 @@ public partial class CharmWindow : Window
         ClockDateText.Visibility = digital.ShowDate ? Visibility.Visible : Visibility.Collapsed;
         if (digital.ShowDate)
         {
-            // Time takes the upper ~55% of the box, date the lower ~30%, so there's breathing
-            // room between the two lines rather than them touching.
-            Canvas.SetTop(ClockTimeText, boxTop + boxHeight * 0.06);
-            ClockTimeText.FontSize = Math.Max(6, boxHeight * 0.38);
+            // Balanced top/gap/bottom margins around the two lines, tuned against VT323's
+            // actual rendered line height (visibly taller than its FontSize suggests) rather
+            // than an even split - an even split left a lot of dead space below the date line.
+            Canvas.SetTop(ClockTimeText, boxTop + boxHeight * 0.10);
+            ClockTimeText.FontSize = Math.Max(6, boxHeight * 0.36);
 
             Canvas.SetLeft(ClockDateText, boxLeft);
-            Canvas.SetTop(ClockDateText, boxTop + boxHeight * 0.60);
+            Canvas.SetTop(ClockDateText, boxTop + boxHeight * 0.58);
             ClockDateText.Width = boxWidth;
-            ClockDateText.FontSize = Math.Max(5, boxHeight * 0.20);
+            ClockDateText.FontSize = Math.Max(5, boxHeight * 0.22);
             ClockDateText.Foreground = ParseBrush(digital.DateColor);
         }
         else

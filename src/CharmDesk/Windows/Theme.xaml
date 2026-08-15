@@ -52,6 +52,9 @@
     <FontFamily x:Key="FontDisplayMedium">pack://application:,,,/CharmDesk;component/Fonts/Fredoka-Medium.ttf#Fredoka Medium</FontFamily>
     <FontFamily x:Key="FontMono">pack://application:,,,/CharmDesk;component/Fonts/SpaceMono-Bold.ttf#Space Mono</FontFamily>
     <FontFamily x:Key="FontMonoRegular">pack://application:,,,/CharmDesk;component/Fonts/SpaceMono-Regular.ttf#Space Mono</FontFamily>
+    <!-- Genuine pixel/LCD-terminal style, used for live-rendered clock-face text (see
+         ClockFaceSettings) - Space Mono is a clean modern monospace, not a pixel font. -->
+    <FontFamily x:Key="FontPixel">pack://application:,,,/CharmDesk;component/Fonts/VT323-Regular.ttf#VT323</FontFamily>
 
     <Style TargetType="Window">
         <Setter Property="Background" Value="{StaticResource PegboardBrush}"/>

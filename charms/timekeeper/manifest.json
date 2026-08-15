@@ -11,9 +11,9 @@
   "physics": {
     "stringLength": 130,
     "gravity": 980,
-    "damping": 0.92,
-    "stiffness": 0.15,
-    "mass": 1.3
+    "damping": 0.90,
+    "stiffness": 0.13,
+    "mass": 1.6
   },
   "clockFace": {
     "digital": {

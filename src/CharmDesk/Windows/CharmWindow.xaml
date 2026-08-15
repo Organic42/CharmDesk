@@ -27,9 +27,11 @@
                    RenderOptions.EdgeMode="Aliased"
                    SnapsToDevicePixels="True"/>
             <TextBlock x:Name="ClockTimeText" Visibility="Collapsed" TextAlignment="Center"
-                       FontFamily="{StaticResource FontMono}" FontWeight="Bold"/>
+                       HorizontalAlignment="Center"
+                       FontFamily="{StaticResource FontPixel}"/>
             <TextBlock x:Name="ClockDateText" Visibility="Collapsed" TextAlignment="Center"
-                       FontFamily="{StaticResource FontMonoRegular}"/>
+                       HorizontalAlignment="Center"
+                       FontFamily="{StaticResource FontPixel}"/>
         </Canvas>
     </Canvas>
 </Window>
