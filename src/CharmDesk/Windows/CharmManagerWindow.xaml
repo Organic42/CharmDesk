@@ -43,13 +43,14 @@
                 <TextBlock x:Name="HeaderText" Text="Import Charm" Style="{StaticResource H1}" Margin="0,0,0,14"/>
 
                 <TextBlock Text="Name" Style="{StaticResource Label}"/>
-                <TextBox x:Name="NameBox" Margin="0,0,0,12"/>
+                <TextBox x:Name="NameBox" Margin="0,0,0,12" AutomationProperties.Name="Charm name"/>
 
                 <TextBlock Text="Description" Style="{StaticResource Label}"/>
-                <TextBox x:Name="DescriptionBox" Height="56" AcceptsReturn="True" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                <TextBox x:Name="DescriptionBox" Height="56" AcceptsReturn="True" TextWrapping="Wrap" Margin="0,0,0,12"
+                         AutomationProperties.Name="Charm description"/>
 
                 <TextBlock Text="Category" Style="{StaticResource Label}"/>
-                <TextBox x:Name="CategoryBox" Margin="0,0,0,12"/>
+                <TextBox x:Name="CategoryBox" Margin="0,0,0,12" AutomationProperties.Name="Charm category"/>
 
                 <CheckBox x:Name="EnabledCheck" Content="Enabled" IsChecked="True" Margin="0,0,0,16"/>
 
@@ -60,10 +61,12 @@
                             <TextBlock Text="Display Scale" Style="{StaticResource Label}" HorizontalAlignment="Left"/>
                             <TextBlock x:Name="DisplayScaleValue" Style="{StaticResource Label}" HorizontalAlignment="Right"/>
                         </Grid>
-                        <Slider x:Name="DisplayScaleSlider" Minimum="0.3" Maximum="3.0" Value="1.0" ValueChanged="DisplayScaleSlider_ValueChanged" Margin="0,0,0,14"/>
+                        <Slider x:Name="DisplayScaleSlider" Minimum="0.3" Maximum="3.0" Value="1.0" ValueChanged="DisplayScaleSlider_ValueChanged" Margin="0,0,0,14"
+                                AutomationProperties.Name="Display scale"/>
 
                         <TextBlock Text="Personality" Style="{StaticResource Label}"/>
-                        <ComboBox x:Name="PersonalityCombo" DisplayMemberPath="Label" SelectionChanged="PersonalityCombo_SelectionChanged"/>
+                        <ComboBox x:Name="PersonalityCombo" DisplayMemberPath="Label" SelectionChanged="PersonalityCombo_SelectionChanged"
+                                  AutomationProperties.Name="Personality"/>
                     </StackPanel>
                 </Border>
 
@@ -72,19 +75,24 @@
                         <TextBlock Text="Physics" FontWeight="SemiBold" Margin="0,0,0,10"/>
 
                         <Grid><TextBlock Text="String Length" Style="{StaticResource Label}" HorizontalAlignment="Left"/><TextBlock x:Name="StringLengthValue" Style="{StaticResource Label}" HorizontalAlignment="Right"/></Grid>
-                        <Slider x:Name="StringLengthSlider" Minimum="40" Maximum="280" Value="120" ValueChanged="PhysicsSlider_ValueChanged" Margin="0,0,0,10"/>
+                        <Slider x:Name="StringLengthSlider" Minimum="40" Maximum="280" Value="120" ValueChanged="PhysicsSlider_ValueChanged" Margin="0,0,0,10"
+                                AutomationProperties.Name="String length"/>
 
                         <Grid><TextBlock Text="Gravity" Style="{StaticResource Label}" HorizontalAlignment="Left"/><TextBlock x:Name="GravityValue" Style="{StaticResource Label}" HorizontalAlignment="Right"/></Grid>
-                        <Slider x:Name="GravitySlider" Minimum="200" Maximum="2000" Value="980" ValueChanged="PhysicsSlider_ValueChanged" Margin="0,0,0,10"/>
+                        <Slider x:Name="GravitySlider" Minimum="200" Maximum="2000" Value="980" ValueChanged="PhysicsSlider_ValueChanged" Margin="0,0,0,10"
+                                AutomationProperties.Name="Gravity"/>
 
                         <Grid><TextBlock Text="Damping" Style="{StaticResource Label}" HorizontalAlignment="Left"/><TextBlock x:Name="DampingValue" Style="{StaticResource Label}" HorizontalAlignment="Right"/></Grid>
-                        <Slider x:Name="DampingSlider" Minimum="0.5" Maximum="0.99" Value="0.92" ValueChanged="PhysicsSlider_ValueChanged" Margin="0,0,0,10"/>
+                        <Slider x:Name="DampingSlider" Minimum="0.5" Maximum="0.99" Value="0.92" ValueChanged="PhysicsSlider_ValueChanged" Margin="0,0,0,10"
+                                AutomationProperties.Name="Damping"/>
 
                         <Grid><TextBlock Text="Stiffness" Style="{StaticResource Label}" HorizontalAlignment="Left"/><TextBlock x:Name="StiffnessValue" Style="{StaticResource Label}" HorizontalAlignment="Right"/></Grid>
-                        <Slider x:Name="StiffnessSlider" Minimum="0.02" Maximum="1.0" Value="0.15" ValueChanged="PhysicsSlider_ValueChanged" Margin="0,0,0,10"/>
+                        <Slider x:Name="StiffnessSlider" Minimum="0.02" Maximum="1.0" Value="0.15" ValueChanged="PhysicsSlider_ValueChanged" Margin="0,0,0,10"
+                                AutomationProperties.Name="Stiffness"/>
 
                         <Grid><TextBlock Text="Mass" Style="{StaticResource Label}" HorizontalAlignment="Left"/><TextBlock x:Name="MassValue" Style="{StaticResource Label}" HorizontalAlignment="Right"/></Grid>
-                        <Slider x:Name="MassSlider" Minimum="0.2" Maximum="5.0" Value="1.0" ValueChanged="PhysicsSlider_ValueChanged"/>
+                        <Slider x:Name="MassSlider" Minimum="0.2" Maximum="5.0" Value="1.0" ValueChanged="PhysicsSlider_ValueChanged"
+                                AutomationProperties.Name="Mass"/>
                     </StackPanel>
                 </Border>
 

@@ -1,5 +1,7 @@
 using System;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Forms;
 using CharmDesk.Native;
@@ -112,6 +114,45 @@ public partial class SettingsWindow : Window
     }
 
     private void ResetPositionButton_Click(object sender, RoutedEventArgs e) => _app.ResetActiveCharmPosition();
+
+    /// <summary>Puts version info and the tail of the local log file on the clipboard, entirely
+    /// on-device - CharmDesk makes no network calls, so this is the only way diagnostics ever
+    /// leave the machine, and only when the user chooses to paste it somewhere themselves.</summary>
+    private void CopyDiagnosticsButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var version = Assembly.GetExecutingAssembly()
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "unknown";
+            var plus = version.IndexOf('+');
+            if (plus > 0) version = version[..plus];
+
+            var logTail = "(no log entries)";
+            var logFile = Path.Combine(_app.Settings.DataDirectory, "logs", "charmdesk.log");
+            if (File.Exists(logFile))
+            {
+                var lines = File.ReadAllLines(logFile);
+                if (lines.Length > 0)
+                    logTail = string.Join(Environment.NewLine, lines.TakeLast(60));
+            }
+
+            var report =
+                $"CharmDesk diagnostic info{Environment.NewLine}" +
+                $"Version: {version}{Environment.NewLine}" +
+                $"OS: {Environment.OSVersion.VersionString}{Environment.NewLine}" +
+                $".NET: {Environment.Version}{Environment.NewLine}" +
+                $"Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}{Environment.NewLine}{Environment.NewLine}" +
+                $"Recent log:{Environment.NewLine}{logTail}";
+
+            System.Windows.Clipboard.SetText(report);
+            DiagnosticsStatusText.Text = "Copied to clipboard - paste it wherever you're reporting the issue.";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
+        {
+            Logger.Log("SettingsWindow.CopyDiagnosticsButton_Click", ex);
+            DiagnosticsStatusText.Text = "Couldn't copy diagnostics - try again in a moment.";
+        }
+    }
 
     private void Persist(bool reflow = false)
     {

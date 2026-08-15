@@ -8,6 +8,8 @@ using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using System.Windows.Automation;
+using System.Windows.Input;
 using CharmDesk.Core;
 using CharmDesk.Persistence;
 using Microsoft.Win32;
@@ -150,6 +152,7 @@ public partial class CharmLibraryWindow : Window
         };
 
         var exportButton = new Button { Content = "⤓", Style = (Style)FindResource("IconButton"), ToolTip = "Export as a .zip charm pack" };
+        AutomationProperties.SetName(exportButton, $"Export {manifest.Name} as a charm pack");
         exportButton.Click += (_, _) => ExportPack(package);
 
         var secondaryRow = new Grid();
@@ -253,13 +256,21 @@ public partial class CharmLibraryWindow : Window
             Height = 268,
             Child = content,
             Cursor = System.Windows.Input.Cursors.Hand,
+            Focusable = true,
         };
+        KeyboardNavigation.SetIsTabStop(card, true);
+        AutomationProperties.SetName(card, "Add a new charm");
 
-        card.MouseLeftButtonUp += (_, _) =>
+        void OpenImporter()
         {
             var manager = new CharmManagerWindow(_app) { Owner = this };
             manager.ShowDialog();
             RebuildCards();
+        }
+        card.MouseLeftButtonUp += (_, _) => OpenImporter();
+        card.KeyDown += (_, e) =>
+        {
+            if (e.Key is Key.Enter or Key.Space) OpenImporter();
         };
 
         var hole = new Ellipse

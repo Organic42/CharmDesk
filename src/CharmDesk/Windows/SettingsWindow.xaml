@@ -20,24 +20,32 @@
                     <CheckBox x:Name="EnablePhysicsCheck" Content="Enable physics" Margin="0,0,0,14" Checked="OnAnyChanged" Unchecked="OnAnyChanged"/>
 
                     <Grid><TextBlock Text="Physics Intensity" Style="{StaticResource Label}" HorizontalAlignment="Left"/><TextBlock x:Name="IntensityValue" Style="{StaticResource Label}" HorizontalAlignment="Right"/></Grid>
-                    <Slider x:Name="IntensitySlider" Minimum="0.2" Maximum="2.0" Margin="0,0,0,14" ValueChanged="OnSliderChanged"/>
+                    <Slider x:Name="IntensitySlider" Minimum="0.2" Maximum="2.0" Margin="0,0,0,14" ValueChanged="OnSliderChanged"
+                            AutomationProperties.Name="Physics intensity"/>
 
                     <Grid><TextBlock Text="Charm Scale" Style="{StaticResource Label}" HorizontalAlignment="Left"/><TextBlock x:Name="ScaleValue" Style="{StaticResource Label}" HorizontalAlignment="Right"/></Grid>
-                    <Slider x:Name="ScaleSlider" Minimum="0.4" Maximum="2.5" ValueChanged="OnSliderChanged"/>
+                    <Slider x:Name="ScaleSlider" Minimum="0.4" Maximum="2.5" ValueChanged="OnSliderChanged"
+                            AutomationProperties.Name="Charm scale"/>
                 </StackPanel>
             </Border>
 
             <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
                 <StackPanel>
                     <TextBlock Text="Default Charm" Style="{StaticResource Label}"/>
-                    <ComboBox x:Name="DefaultCharmCombo" Margin="0,0,0,14" DisplayMemberPath="Name" SelectionChanged="DefaultCharmCombo_SelectionChanged"/>
+                    <ComboBox x:Name="DefaultCharmCombo" Margin="0,0,0,14" DisplayMemberPath="Name" SelectionChanged="DefaultCharmCombo_SelectionChanged"
+                              AutomationProperties.Name="Default charm"/>
 
                     <TextBlock Text="Monitor" Style="{StaticResource Label}"/>
-                    <ComboBox x:Name="MonitorCombo" DisplayMemberPath="Label" SelectionChanged="MonitorCombo_SelectionChanged"/>
+                    <ComboBox x:Name="MonitorCombo" DisplayMemberPath="Label" SelectionChanged="MonitorCombo_SelectionChanged"
+                              AutomationProperties.Name="Monitor"/>
                 </StackPanel>
             </Border>
 
             <Button Content="Reset Position" Margin="0,0,0,14" Click="ResetPositionButton_Click"/>
+
+            <Button Content="Copy Diagnostic Info" Margin="0,0,0,4" Click="CopyDiagnosticsButton_Click"
+                    ToolTip="Copies version info and the recent log to your clipboard - nothing is sent anywhere. Paste it when reporting an issue."/>
+            <TextBlock x:Name="DiagnosticsStatusText" Style="{StaticResource Muted}" Margin="0,0,0,14" Text=" "/>
 
             <Button Content="Close" Style="{StaticResource AccentButton}" Click="CloseButton_Click"/>
         </StackPanel>

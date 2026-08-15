@@ -106,6 +106,27 @@ public partial class App : Application
         if (!_settingsManager.Current.CharmVisible)
             _charmWindow?.HideCharm();
         _tray.SetCharmVisible(_settingsManager.Current.CharmVisible);
+
+        ScheduleOnboardingHintIfNeeded();
+    }
+
+    /// <summary>Shows a one-time balloon tip pointing out right-click and drag, since neither
+    /// is discoverable from the tray icon alone. Delayed so it doesn't compete with the charm's
+    /// own arrival animation for attention, and only ever fires once per install.</summary>
+    private void ScheduleOnboardingHintIfNeeded()
+    {
+        if (_settingsManager.Current.HasShownOnboarding) return;
+
+        var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            _tray.ShowBalloon("Welcome to CharmDesk",
+                "Drag your charm to swing it, or right-click it for options and more charms.");
+            _settingsManager.Current.HasShownOnboarding = true;
+            _settingsManager.Save();
+        };
+        timer.Start();
     }
 
     private void CreateCharmWindow(CharmPackage package)
