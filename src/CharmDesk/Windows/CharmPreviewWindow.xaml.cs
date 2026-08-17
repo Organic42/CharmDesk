@@ -92,9 +92,16 @@ public partial class CharmPreviewWindow : Window
                 var dt = now - _lastTick;
                 _lastTick = now;
                 _engine.Step(dt);
-                RenderFrame();
                 if (_engine.IsAtRest && !_interaction.IsGrabbing)
+                {
+                    _engine.SnapToRest();
+                    RenderFrame();
                     _timer!.Stop();
+                }
+                else
+                {
+                    RenderFrame();
+                }
             };
         }
         if (!_timer.IsEnabled)

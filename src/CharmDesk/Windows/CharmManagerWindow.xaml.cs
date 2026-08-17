@@ -152,9 +152,16 @@ public partial class CharmManagerWindow : Window
                 var dt = now - _lastTick;
                 _lastTick = now;
                 _previewEngine.Step(dt);
-                RenderPreview();
                 if (_previewEngine.IsAtRest && !_previewInteraction.IsGrabbing)
+                {
+                    _previewEngine.SnapToRest();
+                    RenderPreview();
                     _previewTimer!.Stop();
+                }
+                else
+                {
+                    RenderPreview();
+                }
             };
         }
         if (!_previewTimer.IsEnabled)

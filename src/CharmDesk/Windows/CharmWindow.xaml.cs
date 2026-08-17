@@ -139,6 +139,7 @@ public partial class CharmWindow : Window
         RootCanvas.MouseLeftButtonDown += OnMouseDown;
         RootCanvas.MouseLeftButtonUp += OnMouseUp;
         RootCanvas.MouseRightButtonDown += OnMouseRightButtonDown;
+        RootCanvas.MouseWheel += OnMouseWheel;
         RootCanvas.LostMouseCapture += (_, _) =>
         {
             _anchorDragging = false;
@@ -520,12 +521,18 @@ public partial class CharmWindow : Window
         _lastTick = now;
 
         _engine.Step(dt);
-        RenderFrame();
 
         if (_engine.IsAtRest && !_interaction.IsGrabbing && !_anchorDragging)
         {
+            // Snap before this last render, so the frame that actually lands on screen shows
+            // the clean rest pose rather than whatever sub-threshold residual Step() left behind.
+            _engine.SnapToRest();
+            RenderFrame();
             StopRendering();
-            MemoryHelper.TrimWorkingSet();
+        }
+        else
+        {
+            RenderFrame();
         }
     }
 

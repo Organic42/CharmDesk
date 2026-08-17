@@ -18,7 +18,9 @@
             </Canvas.RenderTransform>
             <Image x:Name="CharmImage"
                    Stretch="Fill"
-                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                   RenderOptions.BitmapScalingMode="NearestNeighbor"
+                   RenderOptions.EdgeMode="Aliased"
+                   SnapsToDevicePixels="True"/>
             <!-- Viewbox auto-scales its text child to fit whatever box size/position is
                  computed at runtime - robust to any font's actual glyph metrics, unlike a
                  hand-tuned FontSize ratio that has to be re-guessed every time the font changes. -->
