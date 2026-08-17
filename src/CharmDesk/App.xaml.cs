@@ -22,9 +22,19 @@ public partial class App : Application
     public CharmRegistry Registry => _registry;
     public SettingsManager Settings => _settingsManager;
 
+    /// <summary>The graphics tier (0/1/2) WPF detected for this machine - purely a diagnostic
+    /// breadcrumb, surfaced in Settings' "Copy Diagnostic Info". Added while chasing a flicker
+    /// report that turned out to be on Tier 2 (full hardware acceleration) hardware, which
+    /// disproved the "weak/no GPU acceleration" assumption a since-reverted fix here was built on
+    /// (see git history) - keeping this around so the next report says what a driver actually
+    /// offers instead of it being guessed at from a distance again.</summary>
+    public static int GraphicsRenderTier { get; private set; }
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        GraphicsRenderTier = System.Windows.Media.RenderCapability.Tier >> 16;
 
         var dataDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CharmDesk");

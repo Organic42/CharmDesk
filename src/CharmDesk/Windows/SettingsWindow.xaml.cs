@@ -234,6 +234,7 @@ public partial class SettingsWindow : Window
                 $"Version: {version}{Environment.NewLine}" +
                 $"OS: {Environment.OSVersion.VersionString}{Environment.NewLine}" +
                 $".NET: {Environment.Version}{Environment.NewLine}" +
+                $"Graphics tier at startup: {App.GraphicsRenderTier}{Environment.NewLine}" +
                 $"Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}{Environment.NewLine}{Environment.NewLine}" +
                 $"Recent log:{Environment.NewLine}{logTail}";
 

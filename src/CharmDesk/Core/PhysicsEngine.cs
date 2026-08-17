@@ -98,6 +98,19 @@ public sealed class PhysicsEngine
         if (dt <= 0) return;
         dt = Math.Min(dt, 1.0 / 20.0); // clamp huge dt spikes (e.g. after the window was hidden)
 
+        // Sub-step the physics to prevent numerical explosion (NaN) with explicit Euler integration
+        // when stiffness is high or the frame drops. 120Hz guarantees stability for our parameter ranges.
+        int steps = (int)Math.Ceiling(dt * 120.0);
+        double subDt = dt / steps;
+
+        for (int i = 0; i < steps; i++)
+        {
+            StepInternal(subDt);
+        }
+    }
+
+    private void StepInternal(double dt)
+    {
         var stringLength = Math.Max(1, Settings.StringLength);
         var gravity = Settings.Gravity * Intensity;
         var stiffnessGain = Settings.Stiffness * 60.0 * Math.Max(Intensity, 0.05);
@@ -132,6 +145,7 @@ public sealed class PhysicsEngine
                 Radius = stringLength;
             }
             ThetaVelocity = RadiusVelocity = SpinVelocity = 0;
+            Spin = 0;
             return;
         }
 
@@ -209,10 +223,23 @@ public sealed class PhysicsEngine
     }
 
     /// <summary>True once the charm has essentially stopped moving, for idle CPU throttling.</summary>
-    public bool IsAtRest =>
-        !IsGrabbed &&
-        Math.Abs(ThetaVelocity) < 0.01 &&
-        Math.Abs(RadiusVelocity) < 0.5 &&
-        Math.Abs(SpinVelocity) < 0.01 &&
-        Math.Abs(Theta) < 0.01;
+    public bool IsAtRest
+    {
+        get
+        {
+            if (IsGrabbed) return false;
+            var atRest = Math.Abs(ThetaVelocity) < 0.04 &&
+                         Math.Abs(RadiusVelocity) < 0.8 &&
+                         Math.Abs(SpinVelocity) < 0.04 &&
+                         Math.Abs(Theta) < 0.02;
+            if (atRest && (Theta != 0 || Spin != 0 || ThetaVelocity != 0 || RadiusVelocity != 0 || SpinVelocity != 0))
+            {
+                Theta = 0;
+                Radius = Settings.StringLength;
+                Spin = 0;
+                ThetaVelocity = RadiusVelocity = SpinVelocity = 0;
+            }
+            return atRest;
+        }
+    }
 }
