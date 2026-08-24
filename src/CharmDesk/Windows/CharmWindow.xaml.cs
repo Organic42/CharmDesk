@@ -63,7 +63,9 @@ public partial class CharmWindow : Window
 
     private Point _mouseDownPos;
     private int _mouseDownClickCount;
+    private bool? _clickThroughState;
 
+    private GlobalMouseHook? _mouseHook;
     private double _dpiScale = 1.0;
 
     private DispatcherTimer? _idleTimer;
@@ -98,6 +100,12 @@ public partial class CharmWindow : Window
         _interaction.HoverChanged += hovering => EnsureTimerRunning();
 
         InitializeComponent();
+        // Set here rather than in XAML because it differs per render mode, and it can only be
+        // changed before the window's HWND exists - InitializeComponent doesn't create one yet.
+        // Layered mode needs it (it *is* the layered-window path); DWM mode must not have it,
+        // since AllowsTransparency would force the very UpdateLayeredWindow presentation that
+        // mode exists to bypass.
+        AllowsTransparency = !App.UseDwmTransparency;
         SourceInitialized += OnSourceInitialized;
         Loaded += OnLoaded;
     }
@@ -108,20 +116,74 @@ public partial class CharmWindow : Window
     private void OnSourceInitialized(object? sender, EventArgs e)
     {
         _hwnd = new WindowInteropHelper(this).Handle;
-        NativeMethods.ApplyOverlayWindowStyles(_hwnd);
+        NativeMethods.ApplyOverlayWindowStyles(_hwnd, layered: !App.UseDwmTransparency);
 
         var src = HwndSource.FromHwnd(_hwnd);
         src?.AddHook(WndProc);
 
+        if (App.UseDwmTransparency && src is not null)
+        {
+            // Both halves are required: the HwndSource must stop painting an opaque backdrop,
+            // and DWM must be told to treat the whole client area as frame. Without the first,
+            // the window renders solid black; without the second, DWM has no reason to blend it.
+            src.CompositionTarget.BackgroundColor = Colors.Transparent;
+            if (!NativeMethods.ExtendFrameIntoClientArea(_hwnd))
+                Logger.Log("CharmWindow: DwmExtendFrameIntoClientArea failed - falling back to an opaque window.");
+        }
+
+        // Click-through starts on and is toggled off only while the cursor is actually over the
+        // charm. Restored after being dropped in the render-loop rewrite: without it, whether a
+        // click reaches this window depends on the layered surface's per-pixel alpha, which ties
+        // input to the exact thing that misbehaves on the affected machines. WS_EX_TRANSPARENT is
+        // a window style, so it keeps working no matter what the surface is doing - and in DWM
+        // mode there is no per-pixel alpha hit-testing at all, making this mandatory rather than
+        // merely more robust.
+        NativeMethods.SetClickThrough(_hwnd, true);
+        _clickThroughState = true;
+
         LoadCharmImage();
         LayoutAndPosition();
 
+        // WS_EX_TRANSPARENT excludes this window from hit-testing entirely, so once it is
+        // click-through WPF never sees another mouse message here to notice the cursor came
+        // back. This hook watches the cursor independently of that, purely to catch that one
+        // transition; everything after runs through normal WPF input.
+        _mouseHook = new GlobalMouseHook();
+        _mouseHook.MouseMoved += OnGlobalMouseMoved;
+        _mouseHook.Start();
+
         Closed += (_, _) =>
         {
+            _mouseHook?.Dispose();
             StopRendering();
             _idleTimer?.Stop();
             _clockTimer?.Stop();
         };
+    }
+
+    private void OnGlobalMouseMoved(int screenX, int screenY)
+    {
+        if (_clickThroughState != true) return; // WPF's own input already covers this case
+
+        var localX = screenX / _dpiScale - Left;
+        var localY = screenY / _dpiScale - Top;
+
+        if (_interaction.HitTest(localX, localY) || AnchorHitTest(new Point(localX, localY)))
+        {
+            SetClickThrough(false);
+            Cursor = Cursors.Hand;
+            _interaction.OnMouseMove(localX, localY);
+        }
+    }
+
+    private void SetClickThrough(bool clickThrough)
+    {
+        if (_clickThroughState == clickThrough) return;
+        _clickThroughState = clickThrough;
+        NativeMethods.SetClickThrough(_hwnd, clickThrough);
+        // The hook only has a job while we're click-through - disabling it while hovering or
+        // dragging turns the busiest moment into the cheapest one.
+        if (_mouseHook is not null) _mouseHook.Enabled = clickThrough;
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -362,6 +424,7 @@ public partial class CharmWindow : Window
         {
             var overAnchor = AnchorHitTest(pos);
             var shouldCapture = _interaction.IsHovering || overAnchor;
+            SetClickThrough(!shouldCapture);
             Cursor = shouldCapture ? Cursors.Hand : Cursors.Arrow;
         }
     }
@@ -379,6 +442,7 @@ public partial class CharmWindow : Window
             _anchorDragging = true;
             RootCanvas.Background = DragCaptureBrush;
             RootCanvas.CaptureMouse();
+            SetClickThrough(false);
             _anchorDragStartScreenX = PointToScreenX(e);
             _anchorDragStartLeft = Left;
             e.Handled = true;
@@ -391,6 +455,7 @@ public partial class CharmWindow : Window
             _interaction.TryBeginGrab(pos.X, pos.Y);
             RootCanvas.Background = DragCaptureBrush;
             RootCanvas.CaptureMouse();
+            SetClickThrough(false);
             EnsureTimerRunning();
             e.Handled = true;
         }

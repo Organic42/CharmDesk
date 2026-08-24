@@ -3,7 +3,6 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="CharmDesk"
         WindowStyle="None"
-        AllowsTransparency="True"
         Background="{x:Null}"
         ShowInTaskbar="False"
         ResizeMode="NoResize"

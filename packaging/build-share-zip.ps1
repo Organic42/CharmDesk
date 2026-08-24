@@ -58,6 +58,12 @@ Write-Host "All charm assets, sounds and the exe are present." -ForegroundColor 
 
 Copy-Item (Join-Path $PSScriptRoot "share-readme.txt") (Join-Path $stageDir "READ ME FIRST.txt") -Force
 
+# Two launchers that set CHARMDESK_RENDER before starting the app, so a tester can A/B the two
+# transparency paths without editing environment variables by hand.
+Get-ChildItem $PSScriptRoot -Filter "Run - Mode *.bat" | ForEach-Object {
+    Copy-Item $_.FullName (Join-Path $stageDir $_.Name) -Force
+}
+
 Write-Host "== Zipping ==" -ForegroundColor Cyan
 Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
 Compress-Archive -Path "$stageDir\*" -DestinationPath $zipPath -CompressionLevel Optimal

@@ -30,15 +30,29 @@ public partial class App : Application
     /// offers instead of it being guessed at from a distance again.</summary>
     public static int GraphicsRenderTier { get; private set; }
 
+    /// <summary>How the charm overlay gets its transparency. Selected by the CHARMDESK_RENDER
+    /// environment variable so the two paths can be A/B'd on one machine without shipping two
+    /// builds - see the "Run - Mode ..." launchers beside the exe.
+    ///
+    /// Layered (default, current behaviour): WPF AllowsTransparency, presented via
+    /// UpdateLayeredWindow - a pre-DWM API on a compatibility path.
+    /// Dwm: an ordinary hardware-accelerated window whose transparency comes from the desktop
+    /// compositor, never touching UpdateLayeredWindow.</summary>
+    public static bool UseDwmTransparency { get; private set; }
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
         GraphicsRenderTier = System.Windows.Media.RenderCapability.Tier >> 16;
-
+        UseDwmTransparency = string.Equals(
+            Environment.GetEnvironmentVariable("CHARMDESK_RENDER"), "dwm", StringComparison.OrdinalIgnoreCase);
         var dataDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CharmDesk");
         Logger.Initialize(dataDir);
+        // After Initialize, not before - so this actually lands in the log file that Copy
+        // Diagnostic Info reads back.
+        Logger.Log($"Render mode: {(UseDwmTransparency ? "DWM" : "Layered")}, graphics tier {GraphicsRenderTier}");
 
         DispatcherUnhandledException += (_, args) =>
         {
