@@ -30,14 +30,17 @@ public partial class App : Application
     /// offers instead of it being guessed at from a distance again.</summary>
     public static int GraphicsRenderTier { get; private set; }
 
-    /// <summary>How the charm overlay gets its transparency. Selected by the CHARMDESK_RENDER
-    /// environment variable so the two paths can be A/B'd on one machine without shipping two
-    /// builds - see the "Run - Mode ..." launchers beside the exe.
+    /// <summary>How the charm overlay gets its transparency.
     ///
-    /// Layered (default, current behaviour): WPF AllowsTransparency, presented via
-    /// UpdateLayeredWindow - a pre-DWM API on a compatibility path.
-    /// Dwm: an ordinary hardware-accelerated window whose transparency comes from the desktop
-    /// compositor, never touching UpdateLayeredWindow.</summary>
+    /// Default is DWM: an ordinary hardware-accelerated window whose transparency comes from the
+    /// desktop compositor. The alternative - WPF's AllowsTransparency, which creates a layered
+    /// window presented through UpdateLayeredWindow, a pre-DWM API running on a compatibility
+    /// path - is what caused the charm to visibly blink out on some laptops. Confirmed by
+    /// shipping both paths in one build and A/B testing them on affected hardware: identical
+    /// physics, identical art, flicker on the layered path only.
+    ///
+    /// Set CHARMDESK_RENDER=layered to force the old path back, as an escape hatch if the DWM
+    /// path ever misbehaves somewhere the layered one doesn't.</summary>
     public static bool UseDwmTransparency { get; private set; }
 
     protected override void OnStartup(StartupEventArgs e)
@@ -45,8 +48,8 @@ public partial class App : Application
         base.OnStartup(e);
 
         GraphicsRenderTier = System.Windows.Media.RenderCapability.Tier >> 16;
-        UseDwmTransparency = string.Equals(
-            Environment.GetEnvironmentVariable("CHARMDESK_RENDER"), "dwm", StringComparison.OrdinalIgnoreCase);
+        UseDwmTransparency = !string.Equals(
+            Environment.GetEnvironmentVariable("CHARMDESK_RENDER"), "layered", StringComparison.OrdinalIgnoreCase);
         var dataDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CharmDesk");
         Logger.Initialize(dataDir);

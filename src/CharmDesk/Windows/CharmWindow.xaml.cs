@@ -27,6 +27,8 @@ public partial class CharmWindow : Window
     private const double AttachPointFractionY = 0.11;
     private const double AnchorHitRadius = 14;
     private const int WM_DPICHANGED = 0x02E0;
+    private const int WM_NCHITTEST = 0x0084;
+    private const int HTCLIENT = 1;
 
     private readonly CharmPackage _package;
     private readonly SettingsManager _settingsManager;
@@ -192,6 +194,23 @@ public partial class CharmWindow : Window
         {
             LayoutAndPosition();
         }
+
+        // DWM mode only. Extending the frame across the whole client area makes Windows treat
+        // hits as *non-client* (frame/caption) rather than client, so the click arrives as
+        // WM_NCLBUTTONDOWN and WPF - which only routes client-area input to content - never sees
+        // it at all. That produced a charm that visibly reacted to nothing: the mouse hook was
+        // correctly clearing WS_EX_TRANSPARENT so the window did receive the input, it was just
+        // being classified as a frame hit and swallowed by DefWindowProc.
+        //
+        // Forcing HTCLIENT everywhere is safe here precisely because this window has no frame to
+        // speak of - WindowStyle=None, ResizeMode=NoResize, no caption, no borders - so there is
+        // no non-client behaviour worth preserving.
+        if (msg == WM_NCHITTEST && App.UseDwmTransparency)
+        {
+            handled = true;
+            return new IntPtr(HTCLIENT);
+        }
+
         return IntPtr.Zero;
     }
 
