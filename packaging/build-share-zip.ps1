@@ -58,6 +58,13 @@ Write-Host "All charm assets, sounds and the exe are present." -ForegroundColor 
 
 Copy-Item (Join-Path $PSScriptRoot "share-readme.txt") (Join-Path $stageDir "READ ME FIRST.txt") -Force
 
+# Escape hatch back to the old layered-window rendering, without needing to set an environment
+# variable by hand. Plain CharmDesk.exe uses the DWM path, which is the one that fixed the
+# flickering on affected laptops.
+Get-ChildItem $PSScriptRoot -Filter "Run - old rendering*.bat" | ForEach-Object {
+    Copy-Item $_.FullName (Join-Path $stageDir $_.Name) -Force
+}
+
 Write-Host "== Zipping ==" -ForegroundColor Cyan
 Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
 Compress-Archive -Path "$stageDir\*" -DestinationPath $zipPath -CompressionLevel Optimal

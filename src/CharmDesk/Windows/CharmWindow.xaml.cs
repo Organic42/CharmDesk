@@ -27,6 +27,8 @@ public partial class CharmWindow : Window
     private const double AttachPointFractionY = 0.11;
     private const double AnchorHitRadius = 14;
     private const int WM_DPICHANGED = 0x02E0;
+    private const int WM_NCHITTEST = 0x0084;
+    private const int HTCLIENT = 1;
 
     private readonly CharmPackage _package;
     private readonly SettingsManager _settingsManager;
@@ -35,7 +37,7 @@ public partial class CharmWindow : Window
     private readonly PhysicsEngine _engine;
     private readonly InteractionSystem _interaction;
 
-    private DispatcherTimer? _timer;
+    private bool _isRendering;
     private readonly Stopwatch _clock = new();
     private double _lastTick;
 
@@ -100,6 +102,12 @@ public partial class CharmWindow : Window
         _interaction.HoverChanged += hovering => EnsureTimerRunning();
 
         InitializeComponent();
+        // Set here rather than in XAML because it differs per render mode, and it can only be
+        // changed before the window's HWND exists - InitializeComponent doesn't create one yet.
+        // Layered mode needs it (it *is* the layered-window path); DWM mode must not have it,
+        // since AllowsTransparency would force the very UpdateLayeredWindow presentation that
+        // mode exists to bypass.
+        AllowsTransparency = !App.UseDwmTransparency;
         SourceInitialized += OnSourceInitialized;
         Loaded += OnLoaded;
     }
@@ -110,31 +118,121 @@ public partial class CharmWindow : Window
     private void OnSourceInitialized(object? sender, EventArgs e)
     {
         _hwnd = new WindowInteropHelper(this).Handle;
-        NativeMethods.ApplyOverlayWindowStyles(_hwnd);
-        NativeMethods.SetClickThrough(_hwnd, true);
-        _clickThroughState = true;
+        NativeMethods.ApplyOverlayWindowStyles(_hwnd, layered: !App.UseDwmTransparency);
 
         var src = HwndSource.FromHwnd(_hwnd);
         src?.AddHook(WndProc);
 
+        if (App.UseDwmTransparency && src is not null)
+        {
+            // Both halves are required: the HwndSource must stop painting an opaque backdrop,
+            // and DWM must be told to treat the whole client area as frame. Without the first,
+            // the window renders solid black; without the second, DWM has no reason to blend it.
+            src.CompositionTarget.BackgroundColor = Colors.Transparent;
+            if (!NativeMethods.ExtendFrameIntoClientArea(_hwnd))
+                Logger.Log("CharmWindow: DwmExtendFrameIntoClientArea failed - falling back to an opaque window.");
+        }
+
+        // Click-through starts on and is toggled off only while the cursor is actually over the
+        // charm. Restored after being dropped in the render-loop rewrite: without it, whether a
+        // click reaches this window depends on the layered surface's per-pixel alpha, which ties
+        // input to the exact thing that misbehaves on the affected machines. WS_EX_TRANSPARENT is
+        // a window style, so it keeps working no matter what the surface is doing - and in DWM
+        // mode there is no per-pixel alpha hit-testing at all, making this mandatory rather than
+        // merely more robust.
+        NativeMethods.SetClickThrough(_hwnd, true);
+        _clickThroughState = true;
+
+        LoadCharmImage();
         LayoutAndPosition();
 
-        // WS_EX_TRANSPARENT excludes this window from mouse hit-testing entirely, always -
-        // not just over transparent pixels. That means once it goes click-through, WPF never
-        // gets another mouse message here to notice the cursor has come back over the charm.
-        // This hook is the only thing that can see the cursor while we're click-through, purely
-        // so it can flip click-through off; every other interaction runs through normal WPF
-        // input once that happens.
+        // WS_EX_TRANSPARENT excludes this window from hit-testing entirely, so once it is
+        // click-through WPF never sees another mouse message here to notice the cursor came
+        // back. This hook watches the cursor independently of that, purely to catch that one
+        // transition; everything after runs through normal WPF input.
         _mouseHook = new GlobalMouseHook();
         _mouseHook.MouseMoved += OnGlobalMouseMoved;
         _mouseHook.Start();
+
         Closed += (_, _) =>
         {
             _mouseHook?.Dispose();
-            _timer?.Stop();
+            StopRendering();
             _idleTimer?.Stop();
             _clockTimer?.Stop();
         };
+    }
+
+    private void OnGlobalMouseMoved(int screenX, int screenY)
+    {
+        if (_clickThroughState != true) return; // WPF's own input already covers this case
+
+        var localX = screenX / _dpiScale - Left;
+        var localY = screenY / _dpiScale - Top;
+
+        if (_interaction.HitTest(localX, localY) || AnchorHitTest(new Point(localX, localY)))
+        {
+            SetClickThrough(false);
+            Cursor = Cursors.Hand;
+            _interaction.OnMouseMove(localX, localY);
+        }
+    }
+
+    private void SetClickThrough(bool clickThrough)
+    {
+        if (_clickThroughState == clickThrough) return;
+        _clickThroughState = clickThrough;
+        NativeMethods.SetClickThrough(_hwnd, clickThrough);
+        // The hook only has a job while we're click-through - disabling it while hovering or
+        // dragging turns the busiest moment into the cheapest one.
+        if (_mouseHook is not null) _mouseHook.Enabled = clickThrough;
+    }
+
+    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == WM_DPICHANGED)
+        {
+            LayoutAndPosition();
+        }
+
+        // DWM mode only. Extending the frame across the whole client area makes Windows treat
+        // hits as *non-client* (frame/caption) rather than client, so the click arrives as
+        // WM_NCLBUTTONDOWN and WPF - which only routes client-area input to content - never sees
+        // it at all. That produced a charm that visibly reacted to nothing: the mouse hook was
+        // correctly clearing WS_EX_TRANSPARENT so the window did receive the input, it was just
+        // being classified as a frame hit and swallowed by DefWindowProc.
+        //
+        // Forcing HTCLIENT everywhere is safe here precisely because this window has no frame to
+        // speak of - WindowStyle=None, ResizeMode=NoResize, no caption, no borders - so there is
+        // no non-client behaviour worth preserving.
+        if (msg == WM_NCHITTEST && App.UseDwmTransparency)
+        {
+            handled = true;
+            return new IntPtr(HTCLIENT);
+        }
+
+        return IntPtr.Zero;
+    }
+
+    private void OnLoaded(object? sender, RoutedEventArgs e)
+    {
+        RootCanvas.MouseMove += OnMouseMove;
+        RootCanvas.MouseLeftButtonDown += OnMouseDown;
+        RootCanvas.MouseLeftButtonUp += OnMouseUp;
+        RootCanvas.MouseRightButtonDown += OnMouseRightButtonDown;
+        RootCanvas.MouseWheel += OnMouseWheel;
+        RootCanvas.LostMouseCapture += (_, _) =>
+        {
+            _anchorDragging = false;
+            if (_interaction.IsGrabbing) _interaction.EndGrab();
+            RootCanvas.Background = null;
+        };
+
+        // A tiny arrival nudge so the charm doesn't look like a static image on launch.
+        _engine.Nudge(0.22);
+        RenderFrame();
+        EnsureTimerRunning();
+        ScheduleIdleFlourish();
     }
 
     /// <summary>An occasional small nudge so the charm never looks like a static image over a
@@ -162,59 +260,32 @@ public partial class CharmWindow : Window
         ScheduleIdleFlourish();
     }
 
-    private void OnGlobalMouseMoved(int screenX, int screenY)
-    {
-        if (_clickThroughState != true) return; // WPF's own input already covers this case
-
-        var localX = screenX / _dpiScale - Left;
-        var localY = screenY / _dpiScale - Top;
-
-        if (_interaction.HitTest(localX, localY) || AnchorHitTest(new Point(localX, localY)))
-        {
-            SetClickThrough(false);
-            Cursor = Cursors.Hand;
-            _interaction.OnMouseMove(localX, localY);
-        }
-    }
-
-    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
-    {
-        if (msg == WM_DPICHANGED)
-        {
-            LayoutAndPosition();
-        }
-        return IntPtr.Zero;
-    }
-
-    private void OnLoaded(object? sender, RoutedEventArgs e)
-    {
-        LoadCharmImage();
-        RootCanvas.MouseMove += OnMouseMove;
-        RootCanvas.MouseLeftButtonDown += OnMouseDown;
-        RootCanvas.MouseLeftButtonUp += OnMouseUp;
-        RootCanvas.MouseRightButtonDown += OnMouseRightButtonDown;
-        RootCanvas.MouseWheel += OnMouseWheel;
-        RootCanvas.LostMouseCapture += (_, _) => { _anchorDragging = false; };
-
-        // A tiny arrival nudge so the charm doesn't look like a static image on launch.
-        _engine.Nudge(0.22);
-        RenderFrame();
-        EnsureTimerRunning();
-        ScheduleIdleFlourish();
-    }
-
+    // Baseline (96) * the Settings window's max Charm Scale (2.5) = 240 DIP, so 512px covers the
+    // largest this charm can ever be drawn even at 2x display scaling, with headroom to spare.
+    // Decoding the full source instead - Timekeeper's art is 1024x1258 - meant every rebuild of
+    // this window's Image element (and, per the CacheMode note below, every frame while the
+    // window is a layered/software-rendered surface) was pushing far more pixels through the
+    // render pipeline than anything on screen could show.
     private void LoadCharmImage()
     {
-        var bmp = ImageLoader.TryLoad(_package.ImagePath, "CharmWindow.LoadCharmImage");
-        CharmImage.Source = bmp;
-
-        var hasValidImage = bmp is { PixelWidth: > 0 };
         var scale = ScaleFactor();
         const double baseline = 96.0;
-        var pixelWidth = hasValidImage ? bmp!.PixelWidth : 1;
+        var displayWidth = baseline * scale;
+
+        // Decode exactly to the size we are going to display it at, eliminating
+        // per-frame software rescaling costs and removing the need for BitmapCache.
+        var bmp = ImageLoader.TryLoadForDisplay(
+            _package.ImagePath, "CharmWindow.LoadCharmImage", (int)Math.Max(1, displayWidth), out var nativeWidth);
+        CharmImage.Source = bmp;
+
+        var hasValidImage = bmp is { PixelWidth: > 0 } && nativeWidth > 0;
+        // The clockFace region below is authored in the source image's own pixel coordinates, so
+        // it must scale against the source's true width - nativeWidth - not bmp.PixelWidth, which
+        // now reflects the exact display size above and would misplace the overlay.
+        var pixelWidth = hasValidImage ? nativeWidth : 1;
         var aspect = hasValidImage ? (double)bmp!.PixelHeight / bmp.PixelWidth : 1.0;
 
-        _displayWidth = baseline * scale;
+        _displayWidth = displayWidth;
         _displayHeight = _displayWidth * aspect;
         _lastScaleFactor = scale;
         CharmVisual.Width = _displayWidth;
@@ -223,7 +294,7 @@ public partial class CharmWindow : Window
         CharmImage.Height = _displayHeight;
         _attachOffsetPixels = _displayHeight * AttachPointFractionY;
 
-        _interaction.HitRadius = Math.Max(_displayWidth, _displayHeight) * 0.5;
+        _interaction.HitRadius = Math.Max(_displayWidth, _displayHeight) * 0.7;
 
         // ClockFace coordinates are authored in the charm's native source-image pixels, so they
         // scale by the same factor the image itself was just scaled by - stays correctly
@@ -348,6 +419,9 @@ public partial class CharmWindow : Window
         Left = Math.Clamp(left, Math.Min(minLeft, maxLeft), Math.Max(minLeft, maxLeft));
         Top = boundsDip.Top;
 
+        Canvas.SetLeft(AnchorDot, _localAnchorX - AnchorDot.Width / 2);
+        Canvas.SetTop(AnchorDot, _localAnchorY - AnchorDot.Height / 2);
+
         RenderFrame();
     }
 
@@ -374,6 +448,8 @@ public partial class CharmWindow : Window
         }
     }
 
+    private static readonly Brush DragCaptureBrush = new SolidColorBrush(Color.FromArgb(1, 0, 0, 0));
+
     private void OnMouseDown(object sender, MouseButtonEventArgs e)
     {
         var pos = e.GetPosition(RootCanvas);
@@ -383,6 +459,7 @@ public partial class CharmWindow : Window
         if (AnchorHitTest(pos))
         {
             _anchorDragging = true;
+            RootCanvas.Background = DragCaptureBrush;
             RootCanvas.CaptureMouse();
             SetClickThrough(false);
             _anchorDragStartScreenX = PointToScreenX(e);
@@ -391,8 +468,11 @@ public partial class CharmWindow : Window
             return;
         }
 
-        if (_interaction.TryBeginGrab(pos.X, pos.Y))
+        var isOverCharm = _interaction.HitTest(pos.X, pos.Y) || (e.OriginalSource is DependencyObject dep && CharmVisual.IsAncestorOf(dep));
+        if (isOverCharm)
         {
+            _interaction.TryBeginGrab(pos.X, pos.Y);
+            RootCanvas.Background = DragCaptureBrush;
             RootCanvas.CaptureMouse();
             SetClickThrough(false);
             EnsureTimerRunning();
@@ -402,6 +482,8 @@ public partial class CharmWindow : Window
 
     private void OnMouseUp(object sender, MouseButtonEventArgs e)
     {
+        RootCanvas.Background = null;
+
         if (_anchorDragging)
         {
             _anchorDragging = false;
@@ -425,7 +507,8 @@ public partial class CharmWindow : Window
     private void OnMouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
         var pos = e.GetPosition(RootCanvas);
-        if (!_interaction.HitTest(pos.X, pos.Y) && !AnchorHitTest(pos))
+        var isOverCharm = _interaction.HitTest(pos.X, pos.Y) || AnchorHitTest(pos) || (e.OriginalSource is DependencyObject dep && (CharmVisual == dep || CharmVisual.IsAncestorOf(dep)));
+        if (!isOverCharm)
             return;
 
         // Cancel any in-progress grab before handing off to the menu - Show() below pumps its
@@ -434,6 +517,7 @@ public partial class CharmWindow : Window
         {
             RootCanvas.ReleaseMouseCapture();
             _interaction.EndGrab();
+            RootCanvas.Background = null;
         }
 
         var screenPoint = PointToScreen(e.GetPosition(this));
@@ -490,31 +574,27 @@ public partial class CharmWindow : Window
         _settingsManager.Save();
     }
 
-    private void SetClickThrough(bool clickThrough)
-    {
-        if (_clickThroughState == clickThrough) return;
-        _clickThroughState = clickThrough;
-        NativeMethods.SetClickThrough(_hwnd, clickThrough);
-        // The hook only has a job to do while we're click-through (see GlobalMouseHook's
-        // summary) - disabling it while hovering/dragging turns the busiest moment (mouse
-        // moving a lot, right as the user grabs the charm) into the cheapest one.
-        if (_mouseHook is not null) _mouseHook.Enabled = clickThrough;
-    }
+
 
     // ---- Render loop -----------------------------------------------------
 
     private void EnsureTimerRunning()
     {
-        if (_timer is null)
-        {
-            _timer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(16) };
-            _timer.Tick += OnTick;
-        }
-        if (!_timer.IsEnabled)
+        if (!_isRendering)
         {
             _clock.Restart();
             _lastTick = 0;
-            _timer.Start();
+            CompositionTarget.Rendering += OnTick;
+            _isRendering = true;
+        }
+    }
+
+    private void StopRendering()
+    {
+        if (_isRendering)
+        {
+            CompositionTarget.Rendering -= OnTick;
+            _isRendering = false;
         }
     }
 
@@ -525,11 +605,18 @@ public partial class CharmWindow : Window
         _lastTick = now;
 
         _engine.Step(dt);
-        RenderFrame();
 
         if (_engine.IsAtRest && !_interaction.IsGrabbing && !_anchorDragging)
         {
-            _timer!.Stop();
+            // Snap before this last render, so the frame that actually lands on screen shows
+            // the clean rest pose rather than whatever sub-threshold residual Step() left behind.
+            _engine.SnapToRest();
+            RenderFrame();
+            StopRendering();
+        }
+        else
+        {
+            RenderFrame();
         }
     }
 
@@ -542,9 +629,6 @@ public partial class CharmWindow : Window
         Canvas.SetLeft(CharmVisual, bobX - _displayWidth / 2);
         Canvas.SetTop(CharmVisual, bobY - _displayHeight / 2);
         SpinTransform.Angle = _engine.Spin * 180.0 / Math.PI;
-
-        Canvas.SetLeft(AnchorDot, _localAnchorX - AnchorDot.Width / 2);
-        Canvas.SetTop(AnchorDot, _localAnchorY - AnchorDot.Height / 2);
 
         var start = new Point(_localAnchorX, _localAnchorY);
         var end = new Point(bobX, attachY);
@@ -589,7 +673,7 @@ public partial class CharmWindow : Window
 
     public void HideCharm()
     {
-        _timer?.Stop();
+        StopRendering();
         _idleTimer?.Stop();
         _clockTimer?.Stop();
         Hide();

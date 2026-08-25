@@ -75,4 +75,52 @@ public static class ImageLoader
         }
         return null;
     }
+
+    /// <summary>Same idea as <see cref="TryLoad"/>'s <c>decodePixelWidth</c>, but for the one
+    /// caller (CharmWindow) that also needs the source image's true, undecoded pixel width for a
+    /// separate calculation - a charm's <c>clockFace</c> region in manifest.json is authored in
+    /// the source image's own pixel coordinates, and scaling that by whatever a *capped* decode
+    /// happened to produce (rather than the real source size) would misplace the clock overlay.
+    ///
+    /// <paramref name="nativePixelWidth"/> is 0 if the file couldn't be read at all.</summary>
+    public static BitmapImage? TryLoadForDisplay(
+        string path, string context, int maxDecodePixelWidth, out int nativePixelWidth)
+    {
+        const int maxAttempts = 3;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                var bytes = File.ReadAllBytes(path);
+                using var stream = new MemoryStream(bytes);
+
+                var probe = BitmapDecoder.Create(stream, BitmapCreateOptions.DelayCreation, BitmapCacheOption.None);
+                var native = probe.Frames.Count > 0 ? probe.Frames[0].PixelWidth : 0;
+                stream.Position = 0;
+
+                var bmp = new BitmapImage();
+                bmp.BeginInit();
+                bmp.CacheOption = BitmapCacheOption.OnLoad;
+                if (native > maxDecodePixelWidth) bmp.DecodePixelWidth = maxDecodePixelWidth;
+                bmp.StreamSource = stream;
+                bmp.EndInit();
+                bmp.Freeze();
+
+                nativePixelWidth = native;
+                return bmp;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+            {
+                if (attempt == maxAttempts)
+                {
+                    Logger.Log($"ImageLoader.TryLoadForDisplay ({context}: {path})", ex);
+                    nativePixelWidth = 0;
+                    return null;
+                }
+                Thread.Sleep(60 * attempt);
+            }
+        }
+        nativePixelWidth = 0;
+        return null;
+    }
 }

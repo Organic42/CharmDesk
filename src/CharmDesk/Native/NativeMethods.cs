@@ -53,13 +53,55 @@ internal static class NativeMethods
             SetExStyle(hWnd, newStyle);
     }
 
-    /// <summary>Applies the one-time flags a desktop overlay window needs: layered, tool window
-    /// (hidden from taskbar/alt-tab), and non-activating (never steals foreground focus).</summary>
-    public static void ApplyOverlayWindowStyles(IntPtr hWnd)
+    /// <summary>Applies the one-time flags a desktop overlay window needs: tool window (hidden
+    /// from taskbar/alt-tab) and non-activating (never steals foreground focus).
+    ///
+    /// <paramref name="layered"/> adds WS_EX_LAYERED, which is required for WPF's
+    /// AllowsTransparency path but must NOT be set for the DWM-composited path - a layered
+    /// window is presented through UpdateLayeredWindow, which is exactly what that path exists
+    /// to avoid.</summary>
+    public static void ApplyOverlayWindowStyles(IntPtr hWnd, bool layered = true)
     {
         var style = GetExStyle(hWnd);
-        style |= WS_EX_LAYERED | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE;
+        style |= WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE;
+        if (layered) style |= WS_EX_LAYERED;
+        else style &= ~WS_EX_LAYERED;
         style &= ~WS_EX_APPWINDOW;
         SetExStyle(hWnd, style);
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MARGINS
+    {
+        public int cxLeftWidth;
+        public int cxRightWidth;
+        public int cyTopHeight;
+        public int cyBottomHeight;
+    }
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmExtendFrameIntoClientArea(IntPtr hWnd, ref MARGINS pMarInset);
+
+    /// <summary>Extends the DWM frame over the entire client area ("sheet of glass"), which makes
+    /// the window's unpainted pixels transparent via the desktop compositor itself rather than
+    /// via UpdateLayeredWindow.
+    ///
+    /// The point of the distinction: WPF's AllowsTransparency creates a layered window and
+    /// presents it with UpdateLayeredWindow, a pre-DWM API that on modern Windows runs through a
+    /// compatibility path. This route instead hands an ordinary, hardware-accelerated window to
+    /// DWM and lets it do the alpha blending, which is the same path every normal window already
+    /// takes. Returns false if DWM refused (it shouldn't on Win10/11, where composition is always
+    /// on, but this must never take the app down).</summary>
+    public static bool ExtendFrameIntoClientArea(IntPtr hWnd)
+    {
+        try
+        {
+            var margins = new MARGINS { cxLeftWidth = -1, cxRightWidth = -1, cyTopHeight = -1, cyBottomHeight = -1 };
+            return DwmExtendFrameIntoClientArea(hWnd, ref margins) == 0;
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException)
+        {
+            return false;
+        }
     }
 }

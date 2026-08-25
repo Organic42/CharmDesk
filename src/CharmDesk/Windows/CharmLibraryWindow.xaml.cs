@@ -120,9 +120,8 @@ public partial class CharmLibraryWindow : Window
         var thumbPath = File.Exists(package.ThumbnailPath) ? package.ThumbnailPath : package.ImagePath;
         if (File.Exists(thumbPath))
         {
-            // Cards render at 116px tall; decoding at source size cost ~2.5MB per charm for
-            // thumbnails that are, in the bundled packs, nearly as large as the full art.
-            image.Source = ImageLoader.TryLoad(thumbPath, "CharmLibraryWindow.BuildCard", decodePixelWidth: 256);
+            // Cards render at 116px tall; decode at 128px to save memory
+            image.Source = ImageLoader.TryLoad(thumbPath, "CharmLibraryWindow.BuildCard", decodePixelWidth: 128);
         }
 
         var nameText = new TextBlock

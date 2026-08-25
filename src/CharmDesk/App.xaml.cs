@@ -22,13 +22,40 @@ public partial class App : Application
     public CharmRegistry Registry => _registry;
     public SettingsManager Settings => _settingsManager;
 
+    /// <summary>The graphics tier (0/1/2) WPF detected for this machine - purely a diagnostic
+    /// breadcrumb, surfaced in Settings' "Copy Diagnostic Info". Added while chasing a flicker
+    /// report that turned out to be on Tier 2 (full hardware acceleration) hardware, which
+    /// disproved the "weak/no GPU acceleration" assumption a since-reverted fix here was built on
+    /// (see git history) - keeping this around so the next report says what a driver actually
+    /// offers instead of it being guessed at from a distance again.</summary>
+    public static int GraphicsRenderTier { get; private set; }
+
+    /// <summary>How the charm overlay gets its transparency.
+    ///
+    /// Default is DWM: an ordinary hardware-accelerated window whose transparency comes from the
+    /// desktop compositor. The alternative - WPF's AllowsTransparency, which creates a layered
+    /// window presented through UpdateLayeredWindow, a pre-DWM API running on a compatibility
+    /// path - is what caused the charm to visibly blink out on some laptops. Confirmed by
+    /// shipping both paths in one build and A/B testing them on affected hardware: identical
+    /// physics, identical art, flicker on the layered path only.
+    ///
+    /// Set CHARMDESK_RENDER=layered to force the old path back, as an escape hatch if the DWM
+    /// path ever misbehaves somewhere the layered one doesn't.</summary>
+    public static bool UseDwmTransparency { get; private set; }
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
+        GraphicsRenderTier = System.Windows.Media.RenderCapability.Tier >> 16;
+        UseDwmTransparency = !string.Equals(
+            Environment.GetEnvironmentVariable("CHARMDESK_RENDER"), "layered", StringComparison.OrdinalIgnoreCase);
         var dataDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CharmDesk");
         Logger.Initialize(dataDir);
+        // After Initialize, not before - so this actually lands in the log file that Copy
+        // Diagnostic Info reads back.
+        Logger.Log($"Render mode: {(UseDwmTransparency ? "DWM" : "Layered")}, graphics tier {GraphicsRenderTier}");
 
         DispatcherUnhandledException += (_, args) =>
         {

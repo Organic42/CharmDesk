@@ -98,6 +98,19 @@ public sealed class PhysicsEngine
         if (dt <= 0) return;
         dt = Math.Min(dt, 1.0 / 20.0); // clamp huge dt spikes (e.g. after the window was hidden)
 
+        // Sub-step the physics to prevent numerical explosion (NaN) with explicit Euler integration
+        // when stiffness is high or the frame drops. 120Hz guarantees stability for our parameter ranges.
+        int steps = (int)Math.Ceiling(dt * 120.0);
+        double subDt = dt / steps;
+
+        for (int i = 0; i < steps; i++)
+        {
+            StepInternal(subDt);
+        }
+    }
+
+    private void StepInternal(double dt)
+    {
         var stringLength = Math.Max(1, Settings.StringLength);
         var gravity = Settings.Gravity * Intensity;
         var stiffnessGain = Settings.Stiffness * 60.0 * Math.Max(Intensity, 0.05);
@@ -132,6 +145,7 @@ public sealed class PhysicsEngine
                 Radius = stringLength;
             }
             ThetaVelocity = RadiusVelocity = SpinVelocity = 0;
+            Spin = 0;
             return;
         }
 
@@ -208,11 +222,28 @@ public sealed class PhysicsEngine
         return d;
     }
 
-    /// <summary>True once the charm has essentially stopped moving, for idle CPU throttling.</summary>
+    /// <summary>True once the charm has essentially stopped moving, for idle CPU throttling.
+    /// A pure query - reading it never changes anything, so it's safe to call from anywhere
+    /// (both preview windows poll it too). Callers that want to snap the tiny leftover residual
+    /// to a clean rest pose once this goes true should call <see cref="SnapToRest"/> themselves.</summary>
     public bool IsAtRest =>
         !IsGrabbed &&
-        Math.Abs(ThetaVelocity) < 0.01 &&
-        Math.Abs(RadiusVelocity) < 0.5 &&
-        Math.Abs(SpinVelocity) < 0.01 &&
-        Math.Abs(Theta) < 0.01;
+        Math.Abs(ThetaVelocity) < 0.04 &&
+        Math.Abs(RadiusVelocity) < 0.8 &&
+        Math.Abs(SpinVelocity) < 0.04 &&
+        Math.Abs(Theta) < 0.02;
+
+    /// <summary>Zeroes out the small leftover residual (sub-threshold angle/velocity) once
+    /// <see cref="IsAtRest"/> is true, so the charm settles to an exact, clean rest pose instead
+    /// of a barely-perceptible frozen wobble. Deliberately a separate, explicit call rather than
+    /// a side effect of reading IsAtRest - a query that mutates state on read is a trap for
+    /// every future caller of it, and IsAtRest is already read from both preview windows as well
+    /// as the main charm.</summary>
+    public void SnapToRest()
+    {
+        Theta = 0;
+        Radius = Settings.StringLength;
+        Spin = 0;
+        ThetaVelocity = RadiusVelocity = SpinVelocity = 0;
+    }
 }
