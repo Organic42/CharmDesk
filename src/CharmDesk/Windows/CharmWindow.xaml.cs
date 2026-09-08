@@ -58,7 +58,7 @@ public partial class CharmWindow : Window
 
     /// <summary>The ScaleFactor() a full LoadCharmImage() was last run with - lets
     /// ApplySettingsChanged skip re-reading and re-decoding the charm's PNG from disk when a
-    /// settings change has nothing to do with size (e.g. toggling sound effects).</summary>
+    /// settings change has nothing to do with size (e.g. toggling the 24-hour clock).</summary>
     private double _lastScaleFactor = -1;
 
     private bool _anchorDragging;
@@ -98,7 +98,7 @@ public partial class CharmWindow : Window
             Enabled = Settings.EnablePhysics,
         };
         _interaction = new InteractionSystem(_engine,
-            new DefaultCharmBehavior(package.Manifest.ReactionStyle, () => Settings.SoundEffectsEnabled));
+            new DefaultCharmBehavior(package.Manifest.ReactionStyle));
         _interaction.HoverChanged += hovering => EnsureTimerRunning();
 
         InitializeComponent();
@@ -697,26 +697,51 @@ public partial class CharmWindow : Window
                  _localAnchorX + AnchorHitRadius, _localAnchorY + AnchorHitRadius, s),
         };
 
-        // The string is a quadratic bezier; sampling it into a few small squares traces it closely
-        // enough at its 1.3px stroke width, without the region having to describe a curve.
+        // The string is a quadratic bezier; sampling it into small squares traces it closely enough
+        // at its 1.3px stroke width, without the region having to describe a curve.
+        //
+        // The sample COUNT has to scale with how long the string currently is. At a fixed count the
+        // spacing grows with the string, and once the centres are further apart than a square is
+        // wide the squares stop touching - the region becomes a dotted chain that clips the string
+        // into dashes with a hard edge at every gap. Grabbing stretches the string well past its
+        // resting length, which is exactly when the gaps got widest and the artefact most visible.
+        // Stepping by bandHalf keeps consecutive squares overlapping by half their width at any
+        // length; the Manhattan span is a cheap over-estimate of the curve length, which errs
+        // toward more samples rather than fewer.
         const double bandHalf = 3;
-        for (var i = 0; i <= StringRegionSamples; i++)
+        var span = Math.Abs(end.X - start.X) + Math.Abs(end.Y - start.Y);
+        var samples = (int)Math.Clamp(Math.Ceiling(span / bandHalf), StringRegionSamples, 240);
+        for (var i = 0; i <= samples; i++)
         {
-            var t = (double)i / StringRegionSamples;
+            var t = (double)i / samples;
             var mt = 1 - t;
             var px = mt * mt * start.X + 2 * mt * t * control.X + t * t * end.X;
             var py = mt * mt * start.Y + 2 * mt * t * control.Y + t * t * end.Y;
             parts.Add(Rect(px - bandHalf, py - bandHalf, px + bandHalf, py + bandHalf, s));
         }
 
-        var signature = HashCode.Combine(parts[0].Left, parts[0].Top, parts[0].Right, parts[0].Bottom,
-            parts[^1].Left, parts[^1].Top, parts.Count);
+        // Hash every rect, not just the first and last: the string's sag is driven by swing
+        // velocity, so the curve can change shape while both endpoints round to the same pixel.
+        // Sampling only the ends let those frames keep a stale region that no longer follows the
+        // string being drawn through it.
+        var hash = new HashCode();
+        foreach (var part in parts)
+        {
+            hash.Add(part.Left);
+            hash.Add(part.Top);
+            hash.Add(part.Right);
+            hash.Add(part.Bottom);
+        }
+        var signature = hash.ToHashCode();
         if (signature == _regionSignature) return;
         _regionSignature = signature;
 
         NativeMethods.SetClickableRegion(_hwnd, parts);
     }
 
+    /// <summary>Floor on the string's region samples - the actual count scales with its current
+    /// length (see UpdateClickableRegion). Only reached when the charm is hanging almost straight
+    /// down at a small scale, where the string is short enough that this many already overlap.</summary>
     private const int StringRegionSamples = 14;
     private int _regionSignature;
 
@@ -761,7 +786,7 @@ public partial class CharmWindow : Window
 
         // LoadCharmImage does a real disk read + bitmap decode (plus a clock-face layout/color
         // reparse for ClockFace charms) - this fires on every settings change, including ones
-        // with nothing to do with size (sound effects, 24-hour clock, ...), so only pay for it
+        // with nothing to do with size (24-hour clock, physics intensity, ...), so only pay for it
         // when the scale actually changed. A live clock's display format can still depend on
         // Settings even when scale didn't change, so keep that one cheap update either way.
         if (Math.Abs(newScale - _lastScaleFactor) > 0.0001)

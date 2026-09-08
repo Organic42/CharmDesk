@@ -51,7 +51,7 @@ Pixel-art desktop charms with real pendulum physics — grab, swing, and collect
 
 ## Release notes / "What's new" (v1.0.0)
 
-Initial release: physics-based desktop charms, the Charm Library and Manager, sound effects,
+Initial release: physics-based desktop charms, the Charm Library and Manager,
 charm personalities, pack sharing, and Start-with-Windows support.
 
 ## Category suggestion

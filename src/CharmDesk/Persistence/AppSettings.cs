@@ -10,7 +10,6 @@ public sealed class AppSettings
     public double PhysicsIntensity { get; set; } = 1.0;
     public double CharmScale { get; set; } = 1.0;
     public bool CharmVisible { get; set; } = true;
-    public bool SoundEffectsEnabled { get; set; } = true;
     public bool HasShownOnboarding { get; set; } = false;
     public bool Use24HourClock { get; set; } = true;
 

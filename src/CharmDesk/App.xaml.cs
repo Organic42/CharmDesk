@@ -133,7 +133,7 @@ public partial class App : Application
                     "CharmDesk can't find its charm files, so there's nothing to hang on your desktop.\n\n" +
                     "This usually means it was opened from inside the .zip. Extract the whole folder " +
                     "somewhere first (your Desktop is fine), then run CharmDesk.exe from the extracted " +
-                    "folder - keeping it next to the 'charms' and 'Sounds' folders.",
+                    "folder - keeping it next to the 'charms' folder.",
                     "CharmDesk", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }

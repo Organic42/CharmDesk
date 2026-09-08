@@ -78,13 +78,5 @@
     <Resource Include="Fonts\*.ttf" />
   </ItemGroup>
 
-  <ItemGroup>
-    <!-- UI chimes, loaded from disk at runtime via System.Media.SoundPlayer (not a WPF pack
-         resource - SoundPlayer wants a file path/stream, not a pack URI). -->
-    <Content Include="Sounds\*.wav">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-    </Content>
-  </ItemGroup>
 
 </Project>

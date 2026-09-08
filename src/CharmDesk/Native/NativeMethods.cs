@@ -78,11 +78,16 @@ internal static class NativeMethods
     /// processes, needs no hook, and behaves identically no matter how the window is composited
     /// or how fast the machine renders.
     /// </summary>
-    public static void SetClickableRegion(IntPtr hWnd, IReadOnlyList<RECT> parts)
+    /// <param name="redraw">Passed straight to SetWindowRgn's bRedraw. Must be true whenever the
+    /// window is visible, which for this overlay is always: the region is rebuilt as the charm
+    /// swings, and with bRedraw false the system leaves the pixels the shape just stopped covering
+    /// exactly as they were - so the string smeared a comb of stale copies of itself along its
+    /// swept path while moving.</param>
+    public static void SetClickableRegion(IntPtr hWnd, IReadOnlyList<RECT> parts, bool redraw = true)
     {
         if (parts.Count == 0)
         {
-            SetWindowRgn(hWnd, IntPtr.Zero, false);
+            SetWindowRgn(hWnd, IntPtr.Zero, redraw);
             return;
         }
 
@@ -96,13 +101,13 @@ internal static class NativeMethods
 
         // On success the window manager takes ownership of the region handle and it must not be
         // deleted here; on failure nothing took it and it would otherwise leak a GDI object.
-        if (SetWindowRgn(hWnd, combined, false) == 0)
+        if (SetWindowRgn(hWnd, combined, redraw) == 0)
             DeleteObject(combined);
     }
 
     /// <summary>Drops any region set by <see cref="SetClickableRegion"/>, restoring the window to
     /// its full rectangle.</summary>
-    public static void ClearClickableRegion(IntPtr hWnd) => SetWindowRgn(hWnd, IntPtr.Zero, false);
+    public static void ClearClickableRegion(IntPtr hWnd) => SetWindowRgn(hWnd, IntPtr.Zero, true);
 
     public static int GetExStyle(IntPtr hWnd) => (int)GetWindowLongPtrSafe(hWnd, GWL_EXSTYLE);
 
