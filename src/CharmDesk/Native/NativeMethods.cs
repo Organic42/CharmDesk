@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
 namespace CharmDesk.Native;
@@ -27,6 +28,81 @@ internal static class NativeMethods
 
     [DllImport("user32.dll")]
     public static extern uint GetDpiForWindow(IntPtr hWnd);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct RECT
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+    /// <summary>The window's bounds in real screen pixels. Worth preferring over WPF's
+    /// Window.Left/Top wherever a value has to be compared against a raw Win32 coordinate:
+    /// WPF reports those in device-independent units whose relationship to screen pixels stops
+    /// being a single scale factor once monitors with different DPI are in play, which is the
+    /// normal case for a laptop with an external display attached.</summary>
+    public static bool TryGetWindowRect(IntPtr hWnd, out RECT rect) => GetWindowRect(hWnd, out rect);
+
+    [DllImport("gdi32.dll")]
+    private static extern IntPtr CreateRectRgn(int left, int top, int right, int bottom);
+
+    [DllImport("gdi32.dll")]
+    private static extern int CombineRgn(IntPtr dest, IntPtr src1, IntPtr src2, int mode);
+
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DeleteObject(IntPtr hObject);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, [MarshalAs(UnmanagedType.Bool)] bool bRedraw);
+
+    private const int RGN_OR = 2;
+
+    /// <summary>
+    /// Restricts the window to the given rectangles (window-relative, in real pixels): everything
+    /// outside them stops being part of the window at all, so the desktop and other applications
+    /// underneath receive those clicks directly.
+    ///
+    /// This is the click-through mechanism. The obvious-looking alternatives do not survive
+    /// contact with a real desktop: WS_EX_TRANSPARENT excludes the window from hit-testing
+    /// wholesale, so nothing inside it can ever be clicked without some outside agent toggling the
+    /// style back off, and answering WM_NCHITTEST with HTTRANSPARENT only forwards the hit to
+    /// windows on the same thread - which makes it useless for letting a click reach another
+    /// process. A window region is enforced by the window manager itself, so it works across
+    /// processes, needs no hook, and behaves identically no matter how the window is composited
+    /// or how fast the machine renders.
+    /// </summary>
+    public static void SetClickableRegion(IntPtr hWnd, IReadOnlyList<RECT> parts)
+    {
+        if (parts.Count == 0)
+        {
+            SetWindowRgn(hWnd, IntPtr.Zero, false);
+            return;
+        }
+
+        var combined = CreateRectRgn(parts[0].Left, parts[0].Top, parts[0].Right, parts[0].Bottom);
+        for (var i = 1; i < parts.Count; i++)
+        {
+            var next = CreateRectRgn(parts[i].Left, parts[i].Top, parts[i].Right, parts[i].Bottom);
+            CombineRgn(combined, combined, next, RGN_OR);
+            DeleteObject(next);
+        }
+
+        // On success the window manager takes ownership of the region handle and it must not be
+        // deleted here; on failure nothing took it and it would otherwise leak a GDI object.
+        if (SetWindowRgn(hWnd, combined, false) == 0)
+            DeleteObject(combined);
+    }
+
+    /// <summary>Drops any region set by <see cref="SetClickableRegion"/>, restoring the window to
+    /// its full rectangle.</summary>
+    public static void ClearClickableRegion(IntPtr hWnd) => SetWindowRgn(hWnd, IntPtr.Zero, false);
 
     public static int GetExStyle(IntPtr hWnd) => (int)GetWindowLongPtrSafe(hWnd, GWL_EXSTYLE);
 
