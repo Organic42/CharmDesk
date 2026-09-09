@@ -20,7 +20,7 @@
   <Identity
     Name="DelusionalWorks.CharmDesk"
     Publisher="CN=DA524898-B8B3-4F9F-8851-8835755138A5"
-    Version="1.0.0.0"
+    Version="1.0.1.0"
     ProcessorArchitecture="x64" />
 
   <Properties>
