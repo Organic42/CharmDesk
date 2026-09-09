@@ -11,7 +11,6 @@
                 <StackPanel>
                     <CheckBox x:Name="StartWithWindowsCheck" Content="Start with Windows" Margin="0,0,0,12" Checked="OnAnyChanged" Unchecked="OnAnyChanged"/>
                     <CheckBox x:Name="AlwaysOnTopCheck" Content="Always on top" Margin="0,0,0,12" Checked="OnAnyChanged" Unchecked="OnAnyChanged"/>
-                    <CheckBox x:Name="SoundEffectsCheck" Content="Sound effects" Margin="0,0,0,12" Checked="OnAnyChanged" Unchecked="OnAnyChanged"/>
                     <CheckBox x:Name="Use24HourClockCheck" Content="24-hour clock (charms with a live time display)" Checked="OnAnyChanged" Unchecked="OnAnyChanged"/>
                 </StackPanel>
             </Border>

@@ -43,10 +43,6 @@ Get-ChildItem $charmSrc -Recurse -File | ForEach-Object {
     if (-not (Test-Path $dest)) { $missing += "charms\$rel" }
 }
 
-foreach ($sound in @("pickup.wav", "bounce.wav", "spin.wav")) {
-    if (-not (Test-Path (Join-Path $stageDir "Sounds\$sound"))) { $missing += "Sounds\$sound" }
-}
-
 if (-not (Test-Path (Join-Path $stageDir "CharmDesk.exe"))) { $missing += "CharmDesk.exe" }
 
 if ($missing.Count -gt 0) {
@@ -54,7 +50,7 @@ if ($missing.Count -gt 0) {
     $missing | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
     throw "Payload incomplete - refusing to build a broken share zip. Re-run; this is usually transient."
 }
-Write-Host "All charm assets, sounds and the exe are present." -ForegroundColor Green
+Write-Host "All charm assets and the exe are present." -ForegroundColor Green
 
 Copy-Item (Join-Path $PSScriptRoot "share-readme.txt") (Join-Path $stageDir "READ ME FIRST.txt") -Force
 

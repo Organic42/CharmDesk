@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
@@ -29,6 +30,7 @@ public partial class CharmWindow : Window
     private const int WM_DPICHANGED = 0x02E0;
     private const int WM_NCHITTEST = 0x0084;
     private const int HTCLIENT = 1;
+    private const int HTTRANSPARENT = -1;
 
     private readonly CharmPackage _package;
     private readonly SettingsManager _settingsManager;
@@ -56,7 +58,7 @@ public partial class CharmWindow : Window
 
     /// <summary>The ScaleFactor() a full LoadCharmImage() was last run with - lets
     /// ApplySettingsChanged skip re-reading and re-decoding the charm's PNG from disk when a
-    /// settings change has nothing to do with size (e.g. toggling sound effects).</summary>
+    /// settings change has nothing to do with size (e.g. toggling the 24-hour clock).</summary>
     private double _lastScaleFactor = -1;
 
     private bool _anchorDragging;
@@ -65,9 +67,7 @@ public partial class CharmWindow : Window
 
     private Point _mouseDownPos;
     private int _mouseDownClickCount;
-    private bool? _clickThroughState;
 
-    private GlobalMouseHook? _mouseHook;
     private double _dpiScale = 1.0;
 
     private DispatcherTimer? _idleTimer;
@@ -98,7 +98,7 @@ public partial class CharmWindow : Window
             Enabled = Settings.EnablePhysics,
         };
         _interaction = new InteractionSystem(_engine,
-            new DefaultCharmBehavior(package.Manifest.ReactionStyle, () => Settings.SoundEffectsEnabled));
+            new DefaultCharmBehavior(package.Manifest.ReactionStyle));
         _interaction.HoverChanged += hovering => EnsureTimerRunning();
 
         InitializeComponent();
@@ -133,59 +133,60 @@ public partial class CharmWindow : Window
                 Logger.Log("CharmWindow: DwmExtendFrameIntoClientArea failed - falling back to an opaque window.");
         }
 
-        // Click-through starts on and is toggled off only while the cursor is actually over the
-        // charm. Restored after being dropped in the render-loop rewrite: without it, whether a
-        // click reaches this window depends on the layered surface's per-pixel alpha, which ties
-        // input to the exact thing that misbehaves on the affected machines. WS_EX_TRANSPARENT is
-        // a window style, so it keeps working no matter what the surface is doing - and in DWM
-        // mode there is no per-pixel alpha hit-testing at all, making this mandatory rather than
-        // merely more robust.
-        NativeMethods.SetClickThrough(_hwnd, true);
-        _clickThroughState = true;
+        // Deliberately NOT WS_EX_TRANSPARENT. That style excludes the window from hit-testing
+        // before WM_NCHITTEST is ever sent, which is precisely what makes it unusable here: with
+        // it set, the only way back to an interactive charm is something outside the normal input
+        // path (previously a WH_MOUSE_LL hook) noticing the cursor and clearing the style again.
+        // Click-through is answered per-message in WndProc instead - see the WM_NCHITTEST block.
+        NativeMethods.SetClickThrough(_hwnd, false);
 
         LoadCharmImage();
         LayoutAndPosition();
 
-        // WS_EX_TRANSPARENT excludes this window from hit-testing entirely, so once it is
-        // click-through WPF never sees another mouse message here to notice the cursor came
-        // back. This hook watches the cursor independently of that, purely to catch that one
-        // transition; everything after runs through normal WPF input.
-        _mouseHook = new GlobalMouseHook();
-        _mouseHook.MouseMoved += OnGlobalMouseMoved;
-        _mouseHook.Start();
-
         Closed += (_, _) =>
         {
-            _mouseHook?.Dispose();
             StopRendering();
             _idleTimer?.Stop();
             _clockTimer?.Stop();
         };
     }
 
-    private void OnGlobalMouseMoved(int screenX, int screenY)
+    /// <summary>
+    /// The fine-grained half of hit-testing: which points inside the window's region actually
+    /// belong to the charm. The window region (see UpdateClickableRegion) is what makes the rest
+    /// of the desktop clickable; this only has to sort out the small area the region still covers,
+    /// trimming the padding around the sprite down to its real circular hit area.
+    ///
+    /// Note HTTRANSPARENT alone would not be enough to pass a click to another application -
+    /// Windows only forwards it to windows on the same thread - which is exactly why the region
+    /// does that job instead.
+    /// </summary>
+    private int HitTestScreenPoint(int screenX, int screenY)
     {
-        if (_clickThroughState != true) return; // WPF's own input already covers this case
+        // Never hand back HTTRANSPARENT mid-interaction: a grab that wanders outside the charm's
+        // hit radius (or off the window entirely) must keep receiving input until the button is
+        // released, or the charm would be dropped the moment it is flung.
+        if (_anchorDragging || _interaction.IsGrabbing) return HTCLIENT;
 
-        var localX = screenX / _dpiScale - Left;
-        var localY = screenY / _dpiScale - Top;
-
-        if (_interaction.HitTest(localX, localY) || AnchorHitTest(new Point(localX, localY)))
+        // Measured against the window's real pixel rect rather than Window.Left/Top. Those are
+        // WPF device-independent units, and on a machine driving monitors at different scale
+        // factors they do not convert to screen pixels by a single divide - so the hit region
+        // would sit somewhere other than the drawn charm, exactly the "the charm ignores me"
+        // symptom, and only on the mixed-DPI setups that laptops with an external display hit.
+        double localX, localY;
+        if (NativeMethods.TryGetWindowRect(_hwnd, out var rect))
         {
-            SetClickThrough(false);
-            Cursor = Cursors.Hand;
-            _interaction.OnMouseMove(localX, localY);
+            localX = (screenX - rect.Left) / _dpiScale;
+            localY = (screenY - rect.Top) / _dpiScale;
         }
-    }
+        else
+        {
+            localX = screenX / _dpiScale - Left;
+            localY = screenY / _dpiScale - Top;
+        }
 
-    private void SetClickThrough(bool clickThrough)
-    {
-        if (_clickThroughState == clickThrough) return;
-        _clickThroughState = clickThrough;
-        NativeMethods.SetClickThrough(_hwnd, clickThrough);
-        // The hook only has a job while we're click-through - disabling it while hovering or
-        // dragging turns the busiest moment into the cheapest one.
-        if (_mouseHook is not null) _mouseHook.Enabled = clickThrough;
+        var over = _interaction.HitTest(localX, localY) || AnchorHitTest(new Point(localX, localY));
+        return over ? HTCLIENT : HTTRANSPARENT;
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -195,20 +196,29 @@ public partial class CharmWindow : Window
             LayoutAndPosition();
         }
 
-        // DWM mode only. Extending the frame across the whole client area makes Windows treat
-        // hits as *non-client* (frame/caption) rather than client, so the click arrives as
-        // WM_NCLBUTTONDOWN and WPF - which only routes client-area input to content - never sees
-        // it at all. That produced a charm that visibly reacted to nothing: the mouse hook was
-        // correctly clearing WS_EX_TRANSPARENT so the window did receive the input, it was just
-        // being classified as a frame hit and swallowed by DefWindowProc.
+        // Answering this ourselves does two jobs at once.
         //
-        // Forcing HTCLIENT everywhere is safe here precisely because this window has no frame to
-        // speak of - WindowStyle=None, ResizeMode=NoResize, no caption, no borders - so there is
-        // no non-client behaviour worth preserving.
-        if (msg == WM_NCHITTEST && App.UseDwmTransparency)
+        // It is what makes the window click-through (HTTRANSPARENT everywhere but the charm), and
+        // in DWM mode it is also load-bearing for input working at all: extending the frame across
+        // the client area makes Windows classify hits as *non-client*, so a click would arrive as
+        // WM_NCLBUTTONDOWN and WPF - which only routes client-area input to content - would never
+        // see it. Returning HTCLIENT over the charm fixes that, and is safe precisely because this
+        // window has no frame worth preserving (WindowStyle=None, NoResize, no caption/borders).
+        //
+        // Applied in both render modes on purpose: layered mode would otherwise fall back to
+        // per-pixel-alpha hit-testing, which ties input to the surface behaviour that misbehaves
+        // on the affected machines. One input path, same on every GPU.
+        if (msg == WM_NCHITTEST)
         {
+            // Screen coords are packed as two *signed* 16-bit halves; a monitor left of or above
+            // the primary one has negative coordinates, so these must be sign-extended rather
+            // than masked, or the charm becomes unreachable on those displays.
+            var packed = lParam.ToInt32();
+            var screenX = unchecked((short)(packed & 0xFFFF));
+            var screenY = unchecked((short)((packed >> 16) & 0xFFFF));
+
             handled = true;
-            return new IntPtr(HTCLIENT);
+            return new IntPtr(HitTestScreenPoint(screenX, screenY));
         }
 
         return IntPtr.Zero;
@@ -441,9 +451,10 @@ public partial class CharmWindow : Window
 
         if (!_interaction.IsGrabbing)
         {
-            var overAnchor = AnchorHitTest(pos);
-            var shouldCapture = _interaction.IsHovering || overAnchor;
-            SetClickThrough(!shouldCapture);
+            // Cursor only - click-through is decided per hit test in WndProc now, so there is no
+            // window style to keep in sync here. Reaching this handler at all already means
+            // WM_NCHITTEST claimed the point.
+            var shouldCapture = _interaction.IsHovering || AnchorHitTest(pos);
             Cursor = shouldCapture ? Cursors.Hand : Cursors.Arrow;
         }
     }
@@ -461,7 +472,6 @@ public partial class CharmWindow : Window
             _anchorDragging = true;
             RootCanvas.Background = DragCaptureBrush;
             RootCanvas.CaptureMouse();
-            SetClickThrough(false);
             _anchorDragStartScreenX = PointToScreenX(e);
             _anchorDragStartLeft = Left;
             e.Handled = true;
@@ -474,7 +484,6 @@ public partial class CharmWindow : Window
             _interaction.TryBeginGrab(pos.X, pos.Y);
             RootCanvas.Background = DragCaptureBrush;
             RootCanvas.CaptureMouse();
-            SetClickThrough(false);
             EnsureTimerRunning();
             e.Handled = true;
         }
@@ -657,7 +666,92 @@ public partial class CharmWindow : Window
             _stringSegment.Point1 = control;
             _stringSegment.Point2 = end;
         }
+
+        UpdateClickableRegion(bobX, bobY, start, control, end);
     }
+
+    /// <summary>
+    /// Reshapes the window to just the parts that are actually drawn - the charm, its anchor, and
+    /// a thin band following the string - so every other pixel of this full-height overlay stops
+    /// belonging to the window and clicks there land on whatever is underneath.
+    ///
+    /// Rebuilt as the charm swings, but only when the shape has actually moved by a whole pixel:
+    /// at rest that is never, and mid-swing it is a handful of small rectangles, which keeps this
+    /// far cheaper than it looks and stops it from becoming per-frame churn the compositor has to
+    /// keep up with.
+    /// </summary>
+    private void UpdateClickableRegion(double bobX, double bobY, Point start, Point control, Point end)
+    {
+        if (_hwnd == IntPtr.Zero) return;
+
+        var s = _dpiScale;
+        // Rotation happens about the charm's centre, so the drawn sprite can reach beyond its
+        // upright box by up to half the difference between its diagonal and its side. Padding by
+        // the diagonal keeps the region covering the art at every spin angle.
+        var half = Math.Sqrt(_displayWidth * _displayWidth + _displayHeight * _displayHeight) / 2 + 2;
+
+        var parts = new List<NativeMethods.RECT>(StringRegionSamples + 2)
+        {
+            Rect(bobX - half, bobY - half, bobX + half, bobY + half, s),
+            Rect(_localAnchorX - AnchorHitRadius, _localAnchorY - AnchorHitRadius,
+                 _localAnchorX + AnchorHitRadius, _localAnchorY + AnchorHitRadius, s),
+        };
+
+        // The string is a quadratic bezier; sampling it into small squares traces it closely enough
+        // at its 1.3px stroke width, without the region having to describe a curve.
+        //
+        // The sample COUNT has to scale with how long the string currently is. At a fixed count the
+        // spacing grows with the string, and once the centres are further apart than a square is
+        // wide the squares stop touching - the region becomes a dotted chain that clips the string
+        // into dashes with a hard edge at every gap. Grabbing stretches the string well past its
+        // resting length, which is exactly when the gaps got widest and the artefact most visible.
+        // Stepping by bandHalf keeps consecutive squares overlapping by half their width at any
+        // length; the Manhattan span is a cheap over-estimate of the curve length, which errs
+        // toward more samples rather than fewer.
+        const double bandHalf = 3;
+        var span = Math.Abs(end.X - start.X) + Math.Abs(end.Y - start.Y);
+        var samples = (int)Math.Clamp(Math.Ceiling(span / bandHalf), StringRegionSamples, 240);
+        for (var i = 0; i <= samples; i++)
+        {
+            var t = (double)i / samples;
+            var mt = 1 - t;
+            var px = mt * mt * start.X + 2 * mt * t * control.X + t * t * end.X;
+            var py = mt * mt * start.Y + 2 * mt * t * control.Y + t * t * end.Y;
+            parts.Add(Rect(px - bandHalf, py - bandHalf, px + bandHalf, py + bandHalf, s));
+        }
+
+        // Hash every rect, not just the first and last: the string's sag is driven by swing
+        // velocity, so the curve can change shape while both endpoints round to the same pixel.
+        // Sampling only the ends let those frames keep a stale region that no longer follows the
+        // string being drawn through it.
+        var hash = new HashCode();
+        foreach (var part in parts)
+        {
+            hash.Add(part.Left);
+            hash.Add(part.Top);
+            hash.Add(part.Right);
+            hash.Add(part.Bottom);
+        }
+        var signature = hash.ToHashCode();
+        if (signature == _regionSignature) return;
+        _regionSignature = signature;
+
+        NativeMethods.SetClickableRegion(_hwnd, parts);
+    }
+
+    /// <summary>Floor on the string's region samples - the actual count scales with its current
+    /// length (see UpdateClickableRegion). Only reached when the charm is hanging almost straight
+    /// down at a small scale, where the string is short enough that this many already overlap.</summary>
+    private const int StringRegionSamples = 14;
+    private int _regionSignature;
+
+    private static NativeMethods.RECT Rect(double l, double t, double r, double b, double scale) => new()
+    {
+        Left = (int)Math.Floor(l * scale),
+        Top = (int)Math.Floor(t * scale),
+        Right = (int)Math.Ceiling(r * scale),
+        Bottom = (int)Math.Ceiling(b * scale),
+    };
 
     // ---- Public control surface (tray menu) ------------------------------
 
@@ -692,7 +786,7 @@ public partial class CharmWindow : Window
 
         // LoadCharmImage does a real disk read + bitmap decode (plus a clock-face layout/color
         // reparse for ClockFace charms) - this fires on every settings change, including ones
-        // with nothing to do with size (sound effects, 24-hour clock, ...), so only pay for it
+        // with nothing to do with size (24-hour clock, physics intensity, ...), so only pay for it
         // when the scale actually changed. A live clock's display format can still depend on
         // Settings even when scale didn't change, so keep that one cheap update either way.
         if (Math.Abs(newScale - _lastScaleFactor) > 0.0001)

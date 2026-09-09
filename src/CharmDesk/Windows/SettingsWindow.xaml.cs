@@ -32,7 +32,6 @@ public partial class SettingsWindow : Window
 
         StartWithWindowsCheck.IsChecked = Settings.StartWithWindows;
         AlwaysOnTopCheck.IsChecked = Settings.AlwaysOnTop;
-        SoundEffectsCheck.IsChecked = Settings.SoundEffectsEnabled;
         Use24HourClockCheck.IsChecked = Settings.Use24HourClock;
         EnablePhysicsCheck.IsChecked = Settings.EnablePhysics;
 
@@ -126,7 +125,6 @@ public partial class SettingsWindow : Window
         if (_initializing) return;
 
         Settings.AlwaysOnTop = AlwaysOnTopCheck.IsChecked == true;
-        Settings.SoundEffectsEnabled = SoundEffectsCheck.IsChecked == true;
         Settings.Use24HourClock = Use24HourClockCheck.IsChecked == true;
         Settings.EnablePhysics = EnablePhysicsCheck.IsChecked == true;
 

@@ -12,7 +12,7 @@ HOW TO RUN
 ----------
 1. Unzip this whole folder somewhere (Desktop is fine).
    -> Keep all the files together. Don't move CharmDesk.exe out on its own,
-      or it won't find its charms and sounds.
+      or it won't find its charms.
 2. Double-click CharmDesk.exe
 
 Windows will probably show a blue "Windows protected your PC" box, because
