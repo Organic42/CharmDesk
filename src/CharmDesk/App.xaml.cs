@@ -5,6 +5,7 @@ using System.Windows;
 using CharmDesk.Core;
 using CharmDesk.Native;
 using CharmDesk.Persistence;
+using CharmDesk.Power;
 using CharmDesk.Tray;
 using CharmDesk.Windows;
 
@@ -18,6 +19,8 @@ public partial class App : Application
     private CharmWindow? _charmWindow;
     private CharmLibraryWindow? _libraryWindow;
     private SettingsWindow? _settingsWindow;
+    private PowerScheduler? _power;
+    private PowerScheduleWindow? _powerDialog;
 
     public CharmRegistry Registry => _registry;
     public SettingsManager Settings => _settingsManager;
@@ -91,6 +94,13 @@ public partial class App : Application
             _tray.OpenSettingsRequested += OpenSettings;
             _tray.ResetPositionRequested += () => _charmWindow?.ResetPosition();
             _tray.ExitRequested += () => Shutdown();
+
+            _power = new PowerScheduler(() => _settingsManager.Current.Use24HourClock);
+            _power.Changed += () => _tray.SetPowerSchedule(_power.Action, _power.Due, _settingsManager.Current.Use24HourClock);
+            _power.Notice += message => _tray.ShowBalloon("CharmDesk", message);
+            _tray.PowerTimerRequested += (action, delay) => SchedulePower(action, DateTime.Now + delay);
+            _tray.PowerTimeDialogRequested += OpenPowerScheduleDialog;
+            _tray.PowerCancelRequested += () => _power.Cancel();
 
             LaunchInitialCharm();
 
@@ -268,8 +278,39 @@ public partial class App : Application
         _settingsWindow.Show();
     }
 
+    private void SchedulePower(PowerAction action, DateTime due)
+    {
+        if (_power is null) return;
+        _power.Schedule(action, due);
+
+        // Confirm out loud - a PC that shuts down later should never come as a surprise.
+        var now = DateTime.Now;
+        var when = PowerSchedule.FormatWhen(now, due, _settingsManager.Current.Use24HourClock);
+        var what = action == PowerAction.Sleep ? "go to sleep" : "shut down";
+        _tray.ShowBalloon("CharmDesk",
+            $"Your PC will {what} at {when} (in {PowerSchedule.DescribeRemaining(due - now)}). " +
+            "You'll get a one-minute warning, and you can cancel from the tray icon.");
+    }
+
+    private void OpenPowerScheduleDialog(PowerAction action)
+    {
+        if (_powerDialog is { IsVisible: true }) { _powerDialog.Activate(); return; }
+        _powerDialog = new PowerScheduleWindow(action, _settingsManager.Current.Use24HourClock);
+        try
+        {
+            if (_powerDialog.ShowDialog() == true)
+                SchedulePower(_powerDialog.SelectedAction, _powerDialog.Due);
+        }
+        finally
+        {
+            _powerDialog = null;
+        }
+    }
+
     protected override void OnExit(ExitEventArgs e)
     {
+        // Exiting drops any pending shut down or sleep: it only ever runs while CharmDesk is open.
+        _power?.Dispose();
         _tray?.Dispose();
         base.OnExit(e);
     }

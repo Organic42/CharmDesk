@@ -1,0 +1,53 @@
+<Window x:Class="CharmDesk.Windows.PowerScheduleWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Schedule shut down or sleep"
+        Width="400" SizeToContent="Height"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource PegboardBrush}"
+        Foreground="{StaticResource TextPrimaryBrush}"
+        FontFamily="Segoe UI" FontSize="13">
+    <StackPanel Margin="24,20,24,22">
+        <TextBlock Text="P O W E R   T I M E R" Style="{StaticResource Eyebrow}"/>
+        <TextBlock Text="Pick a time" Style="{StaticResource H1}" FontSize="22" Margin="0,4,0,14"/>
+
+        <Border Style="{StaticResource CardBorder}" Padding="18,14,18,16">
+            <StackPanel>
+                <TextBlock Text="What should happen" Style="{StaticResource Label}"/>
+                <StackPanel Orientation="Horizontal" Margin="0,2,0,14">
+                    <RadioButton x:Name="ShutDownRadio" Content="Shut down" GroupName="PowerAction"
+                                 Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,22,0"
+                                 Checked="OnSelectionChanged"/>
+                    <RadioButton x:Name="SleepRadio" Content="Sleep" GroupName="PowerAction"
+                                 Foreground="{StaticResource TextPrimaryBrush}"
+                                 Checked="OnSelectionChanged"/>
+                </StackPanel>
+
+                <TextBlock Text="At" Style="{StaticResource Label}"/>
+                <StackPanel Orientation="Horizontal">
+                    <ComboBox x:Name="HourCombo" Width="72" SelectionChanged="OnSelectionChanged"
+                              AutomationProperties.Name="Hour"/>
+                    <TextBlock Text=":" VerticalAlignment="Center" Margin="6,0" FontSize="16"
+                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                    <ComboBox x:Name="MinuteCombo" Width="72" SelectionChanged="OnSelectionChanged"
+                              AutomationProperties.Name="Minute"/>
+                    <ComboBox x:Name="PeriodCombo" Width="72" Margin="10,0,0,0" SelectionChanged="OnSelectionChanged"
+                              AutomationProperties.Name="AM or PM"/>
+                </StackPanel>
+
+                <TextBlock x:Name="PreviewText" TextWrapping="Wrap" Margin="0,14,0,0"
+                           Foreground="{StaticResource AccentBrush}"
+                           FontFamily="{StaticResource FontDisplaySemi}" FontSize="14"/>
+                <TextBlock TextWrapping="Wrap" Margin="0,8,0,0" Style="{StaticResource Muted}"
+                           Text="You'll get a one-minute warning with a Cancel button first. You can also cancel any time from the tray icon."/>
+            </StackPanel>
+        </Border>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+            <Button Content="Cancel" IsCancel="True" Margin="0,0,10,0"/>
+            <Button x:Name="ScheduleButton" Content="Schedule" Style="{StaticResource AccentButton}"
+                    IsDefault="True" Click="ScheduleButton_Click"/>
+        </StackPanel>
+    </StackPanel>
+</Window>

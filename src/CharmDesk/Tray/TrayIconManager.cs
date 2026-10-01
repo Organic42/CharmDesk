@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
 using CharmDesk.Core;
+using CharmDesk.Power;
 
 namespace CharmDesk.Tray;
 
@@ -15,6 +16,7 @@ public sealed class TrayIconManager : IDisposable
     private readonly ToolStripMenuItem _showItem;
     private readonly ToolStripMenuItem _hideItem;
     private readonly ToolStripMenuItem _changeCharmItem;
+    private readonly ToolStripMenuItem _cancelPowerItem;
 
     public event Action? ShowCharmRequested;
     public event Action? HideCharmRequested;
@@ -23,6 +25,14 @@ public sealed class TrayIconManager : IDisposable
     public event Action? OpenSettingsRequested;
     public event Action? ResetPositionRequested;
     public event Action? ExitRequested;
+
+    /// <summary>A preset from the Shut Down Later / Sleep Later menus: the action and how far away.</summary>
+    public event Action<PowerAction, TimeSpan>? PowerTimerRequested;
+
+    /// <summary>"At a specific time..." - the caller shows the time picker.</summary>
+    public event Action<PowerAction>? PowerTimeDialogRequested;
+
+    public event Action? PowerCancelRequested;
 
     public TrayIconManager()
     {
@@ -35,6 +45,9 @@ public sealed class TrayIconManager : IDisposable
         var resetItem = new ToolStripMenuItem("Reset Position", null, (_, _) => ResetPositionRequested?.Invoke());
         var exitItem = new ToolStripMenuItem("Exit", null, (_, _) => ExitRequested?.Invoke());
 
+        // Only visible while something is scheduled; its text says what and when.
+        _cancelPowerItem = new ToolStripMenuItem("Cancel", null, (_, _) => PowerCancelRequested?.Invoke()) { Visible = false };
+
         _menu = new ContextMenuStrip();
         _menu.Items.Add(_showItem);
         _menu.Items.Add(_hideItem);
@@ -43,6 +56,10 @@ public sealed class TrayIconManager : IDisposable
         _menu.Items.Add(libraryItem);
         _menu.Items.Add(settingsItem);
         _menu.Items.Add(resetItem);
+        _menu.Items.Add(new ToolStripSeparator());
+        _menu.Items.Add(BuildPowerMenu("Shut Down Later", PowerAction.ShutDown));
+        _menu.Items.Add(BuildPowerMenu("Sleep Later", PowerAction.Sleep));
+        _menu.Items.Add(_cancelPowerItem);
         _menu.Items.Add(new ToolStripSeparator());
         _menu.Items.Add(exitItem);
 
@@ -88,6 +105,41 @@ public sealed class TrayIconManager : IDisposable
         }
         if (_changeCharmItem.DropDownItems.Count == 0)
             _changeCharmItem.DropDownItems.Add(new ToolStripMenuItem("(no charms installed)") { Enabled = false });
+    }
+
+    private ToolStripMenuItem BuildPowerMenu(string title, PowerAction action)
+    {
+        var menu = new ToolStripMenuItem(title);
+        foreach (var (label, delay) in new[]
+                 {
+                     ("In 30 minutes", TimeSpan.FromMinutes(30)),
+                     ("In 1 hour", TimeSpan.FromHours(1)),
+                     ("In 2 hours", TimeSpan.FromHours(2)),
+                 })
+        {
+            menu.DropDownItems.Add(new ToolStripMenuItem(label, null, (_, _) => PowerTimerRequested?.Invoke(action, delay)));
+        }
+        menu.DropDownItems.Add(new ToolStripSeparator());
+        menu.DropDownItems.Add(new ToolStripMenuItem("At a specific time...", null, (_, _) => PowerTimeDialogRequested?.Invoke(action)));
+        return menu;
+    }
+
+    /// <summary>Reflects the pending shut down or sleep (or its absence) in the menu and the
+    /// tray tooltip, so it's never scheduled without being visible somewhere.</summary>
+    public void SetPowerSchedule(PowerAction? action, DateTime? due, bool use24Hour)
+    {
+        if (action is { } a && due is { } d)
+        {
+            var when = PowerSchedule.FormatWhen(DateTime.Now, d, use24Hour);
+            _cancelPowerItem.Text = a == PowerAction.Sleep ? $"Cancel sleep ({when})" : $"Cancel shut down ({when})";
+            _cancelPowerItem.Visible = true;
+            _notifyIcon.Text = a == PowerAction.Sleep ? $"CharmDesk - sleeping at {when}" : $"CharmDesk - shutting down at {when}";
+        }
+        else
+        {
+            _cancelPowerItem.Visible = false;
+            _notifyIcon.Text = "CharmDesk";
+        }
     }
 
     /// <summary>Pops the same menu the tray icon uses at an arbitrary screen point - used for
