@@ -55,6 +55,9 @@
                         <TextBlock TextWrapping="Wrap" LineHeight="16" FontSize="11"
                                    Foreground="{StaticResource TextSecondaryBrush}"
                                    Text="Typefaces: Fredoka by Milena Brandão &amp; Hafontia, Space Mono by Colophon Foundry, and Silkscreen by Jason Kottke. All used under the SIL Open Font License 1.1."/>
+                        <TextBlock TextWrapping="Wrap" LineHeight="16" FontSize="11" Margin="0,8,0,0"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Text="Charm artwork © 2026 Sarthak Wage. All rights reserved. CharmDesk's source code is available under the MIT License."/>
                     </StackPanel>
                 </Border>
             </StackPanel>

@@ -4,8 +4,8 @@
 
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-6D28D9?style=flat-square)](#)
 [![.NET](https://img.shields.io/badge/.NET-8.0-6D28D9?style=flat-square)](#)
-[![License: MIT](https://img.shields.io/badge/license-MIT-6D28D9?style=flat-square)](LICENSE)
-[![Status](https://img.shields.io/badge/status-pre--release-FF5FA2?style=flat-square)](#)
+[![Code: MIT](https://img.shields.io/badge/code-MIT-6D28D9?style=flat-square)](LICENSE) [![Art: all rights reserved](https://img.shields.io/badge/art-all%20rights%20reserved-6D28D9?style=flat-square)](LICENSE-ART.md)
+[![Latest release](https://img.shields.io/github/v/release/Organic42/CharmDesk?style=flat-square&color=FF5FA2&label=release)](https://github.com/Organic42/CharmDesk/releases/latest)
 
 **Little pixel-art charms that hang off the edge of your desktop and swing like the real thing.**
 
@@ -37,6 +37,9 @@ day, built as a real physics simulation instead of a sprite that jiggles on a ti
   feel, save. No source changes, no rebuild.
 - **Lives in the tray.** Show/hide, switch charms, reposition, or quit — right-click the charm
   itself or the tray icon for the same menu.
+- **Shut down or sleep later.** Schedule your PC to shut down or sleep in 30 minutes, an hour,
+  two hours, or at a set time. A one-minute countdown you can cancel always comes first, and
+  apps with unsaved work still get to ask before they close.
 
 ## The collection so far
 
@@ -139,25 +142,40 @@ an automatic dependency.
 ## How it's built
 
 Native WPF + a thin sliver of WinForms (tray icon, monitor enumeration only) — no Electron, no
-web view. Chosen specifically for real per-pixel transparent windows, proper click-through
-hit-testing, and a system tray that doesn't need a browser runtime behind it.
+web view. Chosen specifically for real transparent, click-through windows and a system tray
+that doesn't need a browser runtime behind it.
 
 ```text
 Commerce/        optional tip jar - Store in-app purchases when packaged, a donation
                  link fallback when not (see packaging/tip-jar-setup.md)
 Core/            physics engine, charm manifest model, interaction system
-Native/          Win32 interop - click-through toggling, the global mouse-position hook
-                 that makes click-through recoverable, DPI/monitor helpers
+Native/          Win32 interop - the window region behind click-through, DWM
+                 transparency, DPI/monitor helpers
 Persistence/     settings + logging, both plain JSON/text files
+Power/           shut down / sleep later - timing rules, the scheduler, and the
+                 only code that asks Windows to shut down or sleep
 Tray/            the system tray icon and its shared context menu
 Windows/         the desktop overlay, Charm Library, Charm Manager, Settings
 ```
 
-The trickiest bit: a `WS_EX_TRANSPARENT` window is excluded from mouse hit-testing
-*unconditionally*, not just over transparent pixels — so once the overlay goes click-through, it
-can never see a mouse event again to know the cursor came back. A lightweight low-level mouse
-hook watches cursor position independently of that state, purely to catch the one "cursor
-entered the charm" transition; everything after runs through normal WPF input.
+The trickiest bit is click-through: the overlay is a large window, and it must ignore every
+click except the ones on the charm. CharmDesk does that with a **window region**
+(`SetWindowRgn`): the window is reshaped to just the charm, its anchor and a thin band along the
+string, and rebuilt as the charm swings. Everything outside that shape simply isn't part of the
+window, so Windows hands those clicks straight to whatever is underneath.
+
+Two more obvious approaches were tried first and both failed:
+
+- **`WS_EX_TRANSPARENT`** removes the window from hit-testing *entirely*, so the charm can't be
+  clicked either. Switching it off again needed a global mouse hook, and that proved unreliable:
+  on some laptops the charm ignored the mouse completely, and after a single hover the overlay
+  could go on swallowing every click around it.
+- **Returning `HTTRANSPARENT` from `WM_NCHITTEST`** only passes clicks to windows owned by the
+  *same thread*, so clicks never reach other apps.
+
+The overlay is drawn through the desktop compositor (DWM) rather than as a WPF layered window,
+which is what fixed the flicker some laptops showed. The old layered path is still available as
+a fallback: set `CHARMDESK_RENDER=layered`.
 
 ## Roadmap
 
@@ -170,8 +188,16 @@ entered the charm" transition; everything after runs through normal WPF input.
 ## Contributing
 
 Issues and PRs welcome. If you build a charm you like, a PR adding it to `charms/` is the easiest
-way to get it into the collection.
+way to get it into the collection. By opening one, you confirm you made the art yourself and give
+permission for it to be distributed as part of CharmDesk, in free or paid versions. You keep the
+copyright to your charm.
 
 ## License
 
-[MIT](LICENSE) — see the license file for the full text.
+CharmDesk is split into two parts:
+
+| Part | Licence |
+|---|---|
+| **Source code** | [MIT](LICENSE) — use, modify and redistribute it freely. |
+| **Artwork**: the charms, icons, store images and banner | **All rights reserved** — see [LICENSE-ART.md](LICENSE-ART.md). Use it with CharmDesk and share screenshots or videos, but don't redistribute or reuse it. |
+| **Fonts**: Fredoka, Space Mono, Silkscreen | [SIL Open Font License 1.1](https://openfontlicense.org), by their respective authors. |

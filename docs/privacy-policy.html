@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Privacy Policy — CharmDesk</title>
+<meta name="description" content="CharmDesk's privacy policy. CharmDesk doesn't collect or send any personal data; everything it saves stays on your PC.">
 <style>
   :root {
     --accent: #6D28D9;
@@ -13,6 +14,7 @@
     --text: #2B2620;
     --text-secondary: #6B6459;
     --border: #E8E2D8;
+    --code-bg: #F4F0EA;
   }
   * { box-sizing: border-box; }
   body {
@@ -56,11 +58,24 @@
     margin: 0 0 10px;
     color: var(--accent);
   }
+  h3 {
+    font-size: 15px;
+    margin: 18px 0 6px;
+    color: var(--text);
+  }
   p { margin: 0 0 12px; color: var(--text); }
-  p:last-child { margin-bottom: 0; }
+  p:last-child, ul:last-child { margin-bottom: 0; }
   ul { margin: 0 0 12px; padding-left: 20px; }
   li { margin-bottom: 6px; }
   a { color: var(--accent); }
+  code {
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-size: 0.92em;
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    overflow-wrap: anywhere;
+  }
   .badge {
     display: inline-block;
     font-size: 12px;
@@ -77,75 +92,136 @@
     color: var(--text-secondary);
     text-align: center;
   }
+  @media (max-width: 520px) {
+    .wrap { padding: 36px 16px 56px; }
+    .card { padding: 22px 20px; }
+    h1 { font-size: 28px; }
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
   <p class="eyebrow">P R I V A C Y &nbsp; P O L I C Y</p>
   <h1>CharmDesk</h1>
-  <p class="updated">Last updated August 15, 2026</p>
+  <p class="updated">Last updated October 4, 2026</p>
 
-  <div class="badge">TL;DR — CharmDesk collects nothing and sends nothing anywhere.</div>
+  <div class="badge">TL;DR — CharmDesk doesn't collect or send any personal data. Everything it saves stays on your PC.</div>
 
   <div class="card">
     <h2>Summary</h2>
     <p>
-      CharmDesk is a Windows desktop app that runs entirely on your own computer. It has no
-      account system, no analytics, no ads, no telemetry, and does not connect to the internet
-      at all. Everything the app stores, it stores only on your machine, and nothing ever
-      leaves it.
+      CharmDesk is a Windows desktop app that runs on your own computer. It has no accounts, no
+      analytics, no ads and no tracking, and the developer never receives any information about
+      you or how you use it.
+    </p>
+    <p>
+      The version you download from the CharmDesk website or GitHub never connects to the internet.
+      The Microsoft Store version only contacts the Microsoft Store, to show tip prices and to
+      process a tip if you choose to leave one. Both are explained below.
     </p>
   </div>
 
   <div class="card">
-    <h2>What CharmDesk stores locally</h2>
-    <p>To remember your preferences between launches, CharmDesk keeps a small set of files in
-      your own user profile, under <code>%AppData%\CharmDesk</code>:</p>
+    <h2>What CharmDesk saves on your PC</h2>
+    <p>Everything is kept in your own user profile, in <code>%AppData%\CharmDesk</code>, and is never uploaded:</p>
     <ul>
-      <li><strong>Settings</strong> — your selected charm, physics tweaks, sound toggle, and
-        "start with Windows" preference, saved as a local JSON file.</li>
-      <li><strong>Charm packages</strong> — the built-in charms and any you import yourself,
-        stored as folders of image and manifest files.</li>
-      <li><strong>Logs</strong> — a plain text log used only to help diagnose a crash, kept on
-        your machine.</li>
+      <li><strong>Settings</strong> (<code>settings.json</code>): which charm is shown, its size,
+        position, screen and swing settings, your clock format, whether the charm is hidden or stays
+        on top, whether CharmDesk starts with Windows, which built-in charms you've removed, and
+        whether you've seen the welcome tips.</li>
+      <li><strong>Charms</strong> (<code>charms</code> folder): the built-in charms and any you
+        import, stored as image and settings files.</li>
+      <li><strong>Log file</strong> (<code>logs\charmdesk.log</code>): a plain-text record used to
+        diagnose problems. It notes how the app is drawing on your screen, any errors, and the
+        times you schedule a shut down or sleep and whether it happened. Error messages can include
+        file locations on your PC, and those locations often contain your Windows user name.</li>
     </ul>
-    <p>None of this is personal data in any meaningful sense — there's no name, email, account,
-      or identifier attached to any of it — and none of it is ever transmitted anywhere.
-      Uninstalling the app or deleting that folder removes all of it.</p>
+    <p>None of this includes your name, email, or any account or device identifier. Deleting the
+      <code>%AppData%\CharmDesk</code> folder removes all of it.</p>
+  </div>
+
+  <div class="card">
+    <h2>What CharmDesk does on your PC</h2>
+    <ul>
+      <li><strong>Start with Windows</strong> (off unless you turn it on): adds CharmDesk to your
+        Windows startup apps. Turning it off removes it.</li>
+      <li><strong>Shut down or sleep later</strong>: when you schedule it, CharmDesk asks Windows to
+        shut down or sleep at the time you chose, after a one-minute warning you can cancel. The
+        schedule is only kept while CharmDesk is running.</li>
+      <li><strong>Copy diagnostic info</strong> (in Settings): only when you click it, this copies
+        the app version, your Windows and .NET versions, a graphics capability level and the last
+        60 lines of the log file to your clipboard. Nothing is sent anywhere; it's up to you where,
+        or whether, you paste it.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Tips and the Microsoft Store</h2>
+    <p>Tipping is optional, and the app works fully without it.</p>
+    <h3>Version downloaded from the website or GitHub</h3>
+    <p>The tip button opens a donation page in your web browser. What happens on that page is
+      covered by that site's own privacy policy.</p>
+    <h3>Microsoft Store version</h3>
+    <ul>
+      <li>When you open Settings, CharmDesk asks the Microsoft Store for the prices of the optional
+        tips so it can show them in your currency.</li>
+      <li>If you leave a tip, the purchase is handled entirely by Microsoft. CharmDesk never sees
+        your payment details.</li>
+      <li>Downloads, updates and purchases through the Store are covered by the
+        <a href="https://privacy.microsoft.com/privacystatement">Microsoft Privacy Statement</a>.
+        Microsoft gives the developer summary reports, such as download and sales totals, that
+        don't identify you.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Crash reports</h2>
+    <p>CharmDesk doesn't send crash reports itself. As with any Windows app, if it crashes, Windows
+      may send an error report to Microsoft, depending on your Windows diagnostic data settings. For
+      the Microsoft Store version, Microsoft shares summary crash statistics with the developer to
+      help fix problems.</p>
   </div>
 
   <div class="card">
     <h2>What CharmDesk does not do</h2>
     <ul>
-      <li>No internet connection of any kind — CharmDesk makes zero network requests.</li>
-      <li>No accounts, sign-in, or user identifiers.</li>
-      <li>No analytics, telemetry, or crash reporting sent off your device.</li>
-      <li>No advertising or third-party SDKs.</li>
-      <li>No data is sold, shared, or transmitted to anyone, because none is collected in the
-        first place.</li>
+      <li>No accounts, sign-in or user identifiers.</li>
+      <li>No analytics, telemetry, advertising or tracking.</li>
+      <li>No personal data is collected, sold or shared, because CharmDesk doesn't collect any.</li>
     </ul>
   </div>
 
   <div class="card">
+    <h2>The CharmDesk website</h2>
+    <p>The CharmDesk website and this page are hosted on GitHub Pages. They use no cookies,
+      analytics or third-party scripts. GitHub may record technical information such as your IP
+      address when you visit, as described in the
+      <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub Privacy Statement</a>.</p>
+  </div>
+
+  <div class="card">
     <h2>Children's privacy</h2>
-    <p>CharmDesk does not knowingly collect information from anyone, including children, since
-      it does not collect information at all.</p>
+    <p>CharmDesk doesn't knowingly collect information from anyone, including children, because it
+      doesn't collect personal information at all.</p>
   </div>
 
   <div class="card">
     <h2>Changes to this policy</h2>
-    <p>If CharmDesk ever changes what it stores or how, this page will be updated and the date
-      above will change accordingly.</p>
+    <p>If CharmDesk changes what it stores or how, this page will be updated and the date at the
+      top will change.</p>
   </div>
 
   <div class="card">
     <h2>Contact</h2>
     <p>Questions about this policy or the app can be sent to
-      <a href="mailto:meshcraftassets@gmail.com">meshcraftassets@gmail.com</a>.</p>
+      <a href="mailto:meshcraftassets@gmail.com">meshcraftassets@gmail.com</a>, or raised as an
+      issue on <a href="https://github.com/Organic42/CharmDesk/issues">GitHub</a>.</p>
   </div>
 
   <footer>
-    CharmDesk — made by Sarthak Wage · <a href="https://github.com/Organic42/CharmDesk">github.com/Organic42/CharmDesk</a>
+    CharmDesk — made by Sarthak Wage ·
+    <a href="https://organic42.github.io/CharmDesk-website/">Website</a> ·
+    <a href="https://github.com/Organic42/CharmDesk">GitHub</a>
   </footer>
 </div>
 </body>

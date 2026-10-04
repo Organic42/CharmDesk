@@ -40,3 +40,11 @@ Especially:
 - Does the swinging feel good, or floaty / stiff / too fast?
 - Does it get in the way of anything you're doing?
 - Anything break, freeze, or look wrong?
+
+
+LICENCE
+-------
+CharmDesk's code is open source (MIT). The charm artwork is not:
+it's (c) 2026 Sarthak Wage, all rights reserved. Use it with CharmDesk
+and share screenshots or videos freely, but please don't copy the art
+into other projects. Full terms: charms\LICENSE.md
